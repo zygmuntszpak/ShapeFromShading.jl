@@ -1,5 +1,7 @@
 module ShapeFromShading
 
+using Images
+
 abstract type ShapeAlgorithm end
 struct DiscreteShape <: ShapeAlgorithm end
 struct DiscreteShapeBound <: ShapeAlgorithm end

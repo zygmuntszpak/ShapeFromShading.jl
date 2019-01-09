@@ -1,21 +1,30 @@
-function generate_surface(albedo::Real, illumination_direction::Vector{T} where T <: Real, radius::Real)
+function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.25, resolution::Real = 0.1)
+    #initialize values
     ρ = albedo
     I = illumination_direction
     r = radius
-    x,y = -1.5*r:0.1:1.5*r,-1.5*r:0.1:1.5*r
-    if length(I) != 3
-        @show "ADD ERROR CHECK HERE"
-    end
-    #p = -x./sqrt(r^2-(x.^2 + y.^2))
-    #q = -y./sqrt(r^2-(x.^2 + y.^2))
-    R = zeros(Complex{Float64}, length(x), length(y))
+    x = -scale_factor*r:resolution:scale_factor*r
+    y= -scale_factor*r:resolution:scale_factor*r
+    R = zeros(Float64, length(x), length(y))
+
+    #create refection map
     for i = 1:length(x)
         for j = 1:length(y)
-            p = -x[i]/sqrt(complex(r^2-(x[i]^2+y[j]^2)))
-            q = -y[i]/sqrt(complex(r^2-(x[i]^2+y[j]^2)))
-            R = (ρ*(-I[1]*p-I[2]*q+I[3]))/sqrt(1+p^2+q^2)
+            #if point is inside circle continue else make = 0
+            if r^2 - (x[i]^2 + y[j]^2) > 0
+                #calculate surface partial derivatives at
+                p = -x[i]/sqrt(r^2-(x[i]^2+y[j]^2))
+                q = -y[j]/sqrt(r^2-(x[i]^2+y[j]^2))
+                #calculate reflected value
+                R[i,j] = (ρ*(-I[1]*p-I[2]*q+I[3]))/sqrt(1+p^2+q^2)
+            else
+                R[i,j] = 0.0
+            end
+            R[i,j] = max(0.0, R[i,j])
         end
     end
-    @show sqrt(length(R))
-    @show length(x)
+
+    #convert to img and return
+    img = colorview(Gray, R)
+    return img
 end
