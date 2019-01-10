@@ -2,6 +2,7 @@ module ShapeFromShading
 
 using Images
 using Statistics
+using FFTW
 
 abstract type ShapeAlgorithm end
 struct DiscreteShape <: ShapeAlgorithm end
