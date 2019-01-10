@@ -1,4 +1,4 @@
-function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.25, resolution::Real = 0.1)
+function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
     #initialize values
     ρ = albedo
     I = illumination_direction
