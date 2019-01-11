@@ -1,15 +1,13 @@
 function estimate_img_properties(img::AbstractArray)
     E = Array{Float64}(img)
-
     #calculate spatial gradient of img
-    Ey,Ex = imgradients(E, KernelFactors.scharr, "replicate")
-
+    Ey,Ex = imgradients(E, KernelFactors.sobel, "replicate")
     #normalize gradient
     nEx = similar(E)
     nEy = similar(E)
     Exy = sqrt.((Ex.^2) .+ (Ey.^2))
-    nEx = Ex./(Exy.+(2^(-52)))
-    nEy = Ey./(Exy.+(2^(-52)))
+    nEx = Ex./(Exy.+eps())
+    nEy = Ey./(Exy.+eps())
 
     #calculate means
     μ₁ = mean(E)

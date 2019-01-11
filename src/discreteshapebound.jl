@@ -1,4 +1,4 @@
-function retrieve_surface(algorithm::DiscreteShape, img::AbstractArray)
+function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray)
     E = Array{Float64}(img)
     E = E[1:2:end,1:2:end]
     ρ,I,σ,τ = estimate_img_properties(img)
@@ -10,17 +10,24 @@ function retrieve_surface(algorithm::DiscreteShape, img::AbstractArray)
     δq = similar(E)
     R = similar(E)
     Z = similar(E)
+    for i in CartesianIndices(E)
+        if E[i]>0.75
+            Z[i]=-100*E[i]
+        end
+    end
+    q,p = imgradients(Z, KernelFactors.sobel, "replicate")
+    @show p[22,37]
     λ = 1000
     iterations = 1
-    w = 0.25*[0 1 0;1 0 1;0 1 0];
+    w = centered(0.25*[0 1 0;1 0 1;0 1 0])
     x,y = 1:N,1:M
     wx = (2 .* π .* x) ./ M;
     wy = (2 .* π .* y) ./ N;
     for i = 1:iterations
         percent = (i/iterations)*100
         @show i,percent
-        δp = imfilter(p,w,"replicate")
-        δq = imfilter(q,w,"replicate")
+        δp = imfilter(p,reflect(w),"replicate")
+        δq = imfilter(q,reflect(w),"replicate")
         R = (ρ.*(-I[1] .* p .- I[2].* q .+ I[3]))./sqrt.(1 .+ p.^2 .+ q.^2)
         pq = (1 .+ p.^2 .+ q.^2)
         dR_dp = ((-ρ * I[1]) ./ sqrt.(pq)) .+ ((-I[1] * ρ) .* p .- I[2] * ρ .* q .+ I[3] * ρ) .* (-1 .* p .* (pq .^(-3/2)))
