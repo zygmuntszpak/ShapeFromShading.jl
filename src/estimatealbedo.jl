@@ -17,6 +17,7 @@ function estimate_img_properties(img::AbstractArray)
     g = sqrt(6*(π^2)*μ₂-48*(μ₁^2))
     ρ = g/π
     σ = acos((4*μ₁)/g)
+    #@show mean(nEy),mean(nEx)
     τ = atan(mean(nEy)/mean(nEx))
     if τ < 0
         τ = τ + π;

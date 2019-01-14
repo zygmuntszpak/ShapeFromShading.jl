@@ -1,28 +1,32 @@
 function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray)
+    ρ,I,σ,τ = estimate_img_properties(img)
     E = Array{Float64}(img)
     E = E[1:2:end,1:2:end]
-    ρ,I,σ,τ = estimate_img_properties(img)
     #ρ,I = 0.884985933916937, [0.597336100966117,0.728954641551525,0.334387070687676]
     M,N=size(E)
-    p = similar(E)
-    q = similar(E)
-    δp = similar(E)
-    δq = similar(E)
-    R = similar(E)
-    Z = similar(E)
+    p = zeros(axes(E))
+    q = zeros(axes(E))
+    δp = zeros(axes(E))
+    δq = zeros(axes(E))
+    R = zeros(axes(E))
+    Z = zeros(axes(E))
     for i in CartesianIndices(E)
         if E[i]>0.75
             Z[i]=-100*E[i]
+        else
+            Z[i]=0
         end
     end
     q,p = imgradients(Z, KernelFactors.sobel, "replicate")
-    @show p[22,37]
     λ = 1000
-    iterations = 1
+    iterations = 2000
     w = centered(0.25*[0 1 0;1 0 1;0 1 0])
-    x,y = 1:N,1:M
-    wx = (2 .* π .* x) ./ M;
-    wy = (2 .* π .* y) ./ N;
+    wx = zeros(axes(E))
+    wy = zeros(axes(E))
+    for i in CartesianIndices(wx)
+        wx[i] = (2 * π * i[2]) / M
+        wy[i] = (2 * π * i[1]) / N
+    end
     for i = 1:iterations
         percent = (i/iterations)*100
         @show i,percent
