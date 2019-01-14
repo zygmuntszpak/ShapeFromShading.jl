@@ -4,6 +4,7 @@ using Images
 using Statistics
 using AbstractFFTs
 using OffsetArrays
+using DSP
 
 abstract type ShapeAlgorithm end
 struct DiscreteShape <: ShapeAlgorithm end
@@ -14,11 +15,13 @@ struct Shah <: ShapeAlgorithm end
 include("syntheticsurface.jl")
 include("estimatealbedo.jl")
 include("discreteshape.jl")
+include("discreteshapebound.jl")
 
 export
     # main functions
     generate_surface,
     estimate_img_properties,
     retrieve_surface,
-    DiscreteShape
+    DiscreteShape,
+    DiscreteShapeBound
 end # module
