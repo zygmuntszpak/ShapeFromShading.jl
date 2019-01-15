@@ -1,8 +1,7 @@
-function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray)
+function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, iterations::Int=2000)
     ρ,I,σ,τ = estimate_img_properties(img)
     E = Array{Float64}(img)
     E = E[1:2:end,1:2:end]
-    #ρ,I = 0.884985933916937, [0.597336100966117,0.728954641551525,0.334387070687676]
     M,N=size(E)
     p = zeros(axes(E))
     q = zeros(axes(E))
@@ -19,7 +18,6 @@ function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray)
     end
     q,p = imgradients(Z, KernelFactors.sobel, "replicate")
     λ = 1000
-    iterations = 2000
     w = centered(0.25*[0 1 0;1 0 1;0 1 0])
     wx = zeros(axes(E))
     wy = zeros(axes(E))

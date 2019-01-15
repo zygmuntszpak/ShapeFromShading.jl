@@ -5,6 +5,7 @@ using Statistics
 using AbstractFFTs
 using OffsetArrays
 using DSP
+using MATLAB
 
 abstract type ShapeAlgorithm end
 struct DiscreteShape <: ShapeAlgorithm end
