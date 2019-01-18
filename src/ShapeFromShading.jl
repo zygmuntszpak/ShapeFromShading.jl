@@ -13,6 +13,7 @@ struct DiscreteShapeBound <: ShapeAlgorithm end
 struct Pentland <: ShapeAlgorithm end
 struct Shah <: ShapeAlgorithm end
 
+include("common.jl")
 include("syntheticsurface.jl")
 include("estimatealbedo.jl")
 include("discreteshape.jl")
