@@ -1,8 +1,21 @@
 function retrieve_surface(algorithm::Pentland, img::AbstractArray)
-    #find illumination and albedo
     ρ,I,σ,τ = estimate_img_properties(img)
-    E = Array{Float64}(img)
+    return retrieve_surface(Pentland(),img,σ,τ)
+end
 
+#warning use at own risk
+function retrieve_surface(algorithm::Pentland, img::AbstractArray, illumination_direction::Vector{T} where T <: Real)
+    σ = acos(illumination_direction[3])
+    τ = acos(illumination_direction[1]/sin(σ))
+    @show σ,τ
+    return retrieve_surface(Pentland(),img,σ,τ)
+end
+
+function retrieve_surface(algorithm::Pentland, img::AbstractArray, slant::Real, tilt::Real)
+    #find illumination and albedo
+    σ = slant
+    τ = tilt
+    E = Array{Float64}(img)
     #take fourier transform
     Fe = fft(E)
     M,N=size(E)
