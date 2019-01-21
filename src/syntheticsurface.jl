@@ -4,9 +4,8 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
     I = illumination_direction
     r = radius
     x = -scale_factor*r:resolution:scale_factor*r
-    y= -scale_factor*r:resolution:scale_factor*r
+    y = -scale_factor*r:resolution:scale_factor*r
     R = zeros(Float64, length(x), length(y))
-
     #create refection map
     for i = 1:length(x)
         for j = 1:length(y)
@@ -16,11 +15,11 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
                 p = -x[i]/sqrt(r^2-(x[i]^2+y[j]^2))
                 q = -y[j]/sqrt(r^2-(x[i]^2+y[j]^2))
                 #calculate reflected value
-                R[i,j] = (ρ*(-I[1]*p-I[2]*q+I[3]))/sqrt(1+p^2+q^2)
+                R[j,i] = (ρ*(-I[1]*p-I[2]*q+I[3]))/sqrt(1+p^2+q^2)
             else
-                R[i,j] = 0.0
+                R[j,i] = 0.0
             end
-            R[i,j] = max(0.0, R[i,j])
+            R[j,i] = max(0.0, R[j,i])
         end
     end
 
