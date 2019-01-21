@@ -19,3 +19,13 @@ function solve_EulerLagrange(ρ,I,iterations,δp,δq,w,p,q,R,λ,wx,wy,E,Z)
     end
     return Z
 end
+
+function setup_transform_values(M,N)
+    wx = zeros(M,N)
+    wy = zeros(M,N)
+    for i in CartesianIndices(wx)
+        wx[i] = (2 * π * i[2]) / M
+        wy[i] = (2 * π * i[1]) / N
+    end
+    return wx,wy
+end

@@ -16,6 +16,7 @@ include("syntheticsurface.jl")
 include("estimatealbedo.jl")
 include("discreteshape.jl")
 include("discreteshapebound.jl")
+include("pentland.jl")
 
 export
     # main functions
@@ -23,5 +24,6 @@ export
     estimate_img_properties,
     retrieve_surface,
     DiscreteShape,
-    DiscreteShapeBound
+    DiscreteShapeBound,
+    Pentland
 end # module
