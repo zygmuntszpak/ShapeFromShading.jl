@@ -3,27 +3,28 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
     ρ = albedo
     I = illumination_direction
     r = radius
-    x = -scale_factor*r:resolution:scale_factor*r
-    y = -scale_factor*r:resolution:scale_factor*r
-    R = zeros(Float64, length(x), length(y))
-    #create refection map
-    for i = 1:length(x)
-        for j = 1:length(y)
-            #if point is inside circle continue else make = 0
-            if r^2 - (x[i]^2 + y[j]^2) > 0
-                #calculate surface partial derivatives at
-                p = -x[i]/sqrt(r^2-(x[i]^2+y[j]^2))
-                q = -y[j]/sqrt(r^2-(x[i]^2+y[j]^2))
-                #calculate reflected value
-                R[j,i] = (ρ*(-I[1]*p-I[2]*q+I[3]))/sqrt(1+p^2+q^2)
-            else
-                R[j,i] = 0.0
-            end
-            R[j,i] = max(0.0, R[j,i])
-        end
+    xyrange = -scale_factor*r:resolution:scale_factor*r
+    x=zeros(length(xyrange),length(xyrange))
+    y=zeros(length(xyrange),length(xyrange))
+    for i in CartesianIndices(x)
+        x[i]=xyrange[i[2]]
+        y[i]=xyrange[i[1]]
     end
+    R = zeros(Float64, axes(x))
 
+    #calculate surface partial diferentials
+    p = -x./sqrt.(complex(r^2 .-(x.^2+y.^2)))
+    q = -y./sqrt.(complex(r^2 .-(x.^2+y.^2)))
+
+    #calculate reflectance
+    R = (ρ*(-I[1].*p-I[2].*q.+I[3]))./sqrt.(1 .+ p.^2+q.^2)
+
+    #filter
+    mask = ((r^2 .- (x.^2+y.^2) .> 0))
+    R = R.*mask
+    E = max.(0,Float64.(R))
+    
     #convert to img and return
-    img = colorview(Gray, R)
+    img = colorview(Gray, E)
     return img
 end

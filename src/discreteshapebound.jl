@@ -19,11 +19,6 @@ function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, ite
     q,p = imgradients(Z, KernelFactors.sobel, "replicate")
     λ = 1000
     w = centered(0.25*[0 1 0;1 0 1;0 1 0])
-    wx = zeros(axes(E))
-    wy = zeros(axes(E))
-    for i in CartesianIndices(wx)
-        wx[i] = (2 * π * i[2]) / M
-        wy[i] = (2 * π * i[1]) / N
-    end
+    wx,wy = setup_transform_values(M,N)
     return solve_EulerLagrange(ρ,I,iterations,δp,δq,w,p,q,R,λ,wx,wy,E,Z)
 end
