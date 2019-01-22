@@ -17,6 +17,7 @@ include("estimatealbedo.jl")
 include("discreteshape.jl")
 include("discreteshapebound.jl")
 include("pentland.jl")
+include("shah.jl")
 
 export
     # main functions
@@ -25,5 +26,6 @@ export
     retrieve_surface,
     DiscreteShape,
     DiscreteShapeBound,
-    Pentland
+    Pentland,
+    Shah
 end # module

@@ -1,6 +1,6 @@
 function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, iterations::Int=2000)
     ρ,I,σ,τ = estimate_img_properties(img)
-    return retrieve_surface(DiscreteShapeBound(), img, iterations; albedo=ρ, illumination_direction=I)
+    return retrieve_surface(DiscreteShapeBound(), img, ρ, I, iterations)
 end
 
 function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, albedo::Real, illumination_direction::Vector{T} where T <: Real, iterations::Int=2000)
