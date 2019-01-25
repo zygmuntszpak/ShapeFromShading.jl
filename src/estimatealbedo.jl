@@ -1,3 +1,33 @@
+"""
+```
+albedo,illumination_direction,slant,tilt = estimate_img_properties(img::AbstractArray)
+```
+Attempts to calculate the propeties of an image for use in shape form shading
+algarithms.
+# Output
+Returns albedo , ilumination vector, slant and tilt of the image as Float,
+Float, Array{Float} of size 3 and Float respectivly.
+# Details
+propeties are an estimate and may not be correct under all conditions.
+# Arguments
+The function arguments are described in more detail below.
+##  `img`
+An `AbstractArray` storing the grayscale value of each pixel within
+the range [0,1].
+# Example
+Compute properties of synthetic image generated using `generate_surface`.
+```julia
+using Images, ShapeFromShading
+
+#generate synthetic image
+img = generate_surface(0.5, [0.2,0,0.9], radius = 5)
+
+#estimate the properties
+albedo,illumination_direction,slant,tilt = estimate_img_properties(img)
+```
+# Reference
+1. T. Ping-Sing and M. Shah, "Shape from shading using linear approximation", Image and Vision Computing, vol. 12, no. 8, pp. 487-498, 1994. [doi:10.1016/0262-8856(94)90002-7](https://doi.org/10.1016/0262-8856(94)90002-7)
+"""
 function estimate_img_properties(img::AbstractArray)
     E = Array{Float64}(img)
     #calculate spatial gradient of img
@@ -23,5 +53,6 @@ function estimate_img_properties(img::AbstractArray)
         τ = τ + π;
     end
     I = [cos(τ)*sin(σ),sin(τ)*sin(σ),cos(σ)]
+    @show typeof(I)
     return ρ,I,σ,τ
 end
