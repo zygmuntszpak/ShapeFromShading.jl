@@ -74,8 +74,8 @@ function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt
         R = (cos(σ) .+ p .* cos(τ)*sin(σ) .+ q .* sin(τ)*sin(σ))./sqrt.(1 .+ p.^2 + q.^2)
         R = max.(0,R)
         f = E .- R
-        df_dZ =(p+q).*(ix.*p + iy.*q .+ 1)./(sqrt.((1 .+ p.^2 + q.^2).^3)*sqrt(1 + ix^2 + iy^2))-(ix+iy)./(sqrt.(1 .+ p.^2 + q.^2)*sqrt(1 + ix^2 + iy^2))
-        Z = Z - f./(df_dZ .+ eps())
+        δf_δZ =(p+q).*(ix.*p + iy.*q .+ 1)./(sqrt.((1 .+ p.^2 + q.^2).^3)*sqrt(1 + ix^2 + iy^2))-(ix+iy)./(sqrt.(1 .+ p.^2 + q.^2)*sqrt(1 + ix^2 + iy^2))
+        Z = Z - f./(δf_δZ .+ eps())
         Z_x[2:M,:] = Z[1:M-1,:]
         Z_y[:,2:N] = Z[:,1:N-1]
         p = Z - Z_x;

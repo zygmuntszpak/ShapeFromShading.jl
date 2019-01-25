@@ -63,16 +63,16 @@ function retrieve_surface(algorithm::Pentland, img::AbstractArray, slant::Real, 
     τ = tilt
     E = Array{Float64}(img)
     #take fourier transform
-    Fe = fft(E)
+    E_transform = fft(E)
     M,N=size(E)
 
     #setup wx and wy
     wx,wy = setup_transform_values(M,N)
 
     #using the ilumination direction calculate the transformed Z
-    Fz = Fe./(-1im.*wx.*cos(τ).*sin(σ)-1im.*wy.*sin(τ).*sin(σ))
+    Z_transform = E_transform./(-1im.*wx.*cos(τ).*sin(σ)-1im.*wy.*sin(τ).*sin(σ))
 
     #recover Z
-    Z = abs.(ifft(Fz))
+    Z = abs.(ifft(Z_transform))
     return Z
 end

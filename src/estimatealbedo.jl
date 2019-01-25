@@ -53,6 +53,5 @@ function estimate_img_properties(img::AbstractArray)
         τ = τ + π;
     end
     I = [cos(τ)*sin(σ),sin(τ)*sin(σ),cos(σ)]
-    @show typeof(I)
     return ρ,I,σ,τ
 end
