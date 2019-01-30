@@ -1,7 +1,5 @@
 function solve_EulerLagrange(ρ,I,iterations,δp,δq,w,p,q,R,λ,wx,wy,E,Z)
     for i = 1:iterations
-        #percent = (i/iterations)*100
-        #@show i,percent
         δp = imfilter(p,reflect(w),"replicate")
         δq = imfilter(q,reflect(w),"replicate")
         R = (ρ.*(-I[1] .* p .- I[2].* q .+ I[3]))./sqrt.(1 .+ p.^2 .+ q.^2)
