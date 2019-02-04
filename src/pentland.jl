@@ -53,7 +53,7 @@ surface(r, r, Z)
 1. A. Pentland, "Shape Information From Shading: A Theory About Human Perception," [1988 Proceedings] Second International Conference on Computer Vision, Tampa, FL, USA, 1988, pp. 404-413. [doi: 10.1109/CCV.1988.590017](https://doi.org/10.1109/ccv.1988.590017)
 """
 function retrieve_surface(algorithm::Pentland, img::AbstractArray)
-    ρ,I,σ,τ = estimate_img_properties(img)
+    ρ, I, σ, τ = estimate_img_properties(img)
     return retrieve_surface(Pentland(),img,σ,τ)
 end
 
@@ -61,18 +61,25 @@ function retrieve_surface(algorithm::Pentland, img::AbstractArray, slant::Real, 
     #find illumination and albedo
     σ = slant
     τ = tilt
-    E = Array{Float64}(img)
+    E = Complex{Float64}.(reinterpret(Float64, img))
     #take fourier transform
-    E_transform = fft(E)
-    M,N=size(E)
+    fft!(E)
+    M, N = size(E)
 
     #setup wx and wy
-    wx,wy = setup_transform_values(M,N)
+    wx, wy = setup_transform_values(M, N)
 
     #using the ilumination direction calculate the transformed Z
-    Z_transform = E_transform./(-1im.*wx.*cos(τ).*sin(σ)-1im.*wy.*sin(τ).*sin(σ))
+    Zₜ = zeros(Complex{Float64}, size(E))
+    for i in CartesianIndices(Zₜ)
+        Zₜ[i] = E[i] / (-1im * wx[i] * cos(τ) * sin(σ) - 1im * wy[i] * sin(τ) * sin(σ))
+    end
 
     #recover Z
-    Z = abs.(ifft(Z_transform))
+    ifft!(Zₜ)
+    Z = zeros(Float64, size(E))
+    for i in CartesianIndices(Z)
+        Z[i] = abs(Zₜ[i])
+    end
     return Z
 end

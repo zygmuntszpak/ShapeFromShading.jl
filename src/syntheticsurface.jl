@@ -45,27 +45,41 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
     I = illumination_direction
     r = radius
     xyrange = -scale_factor*r:resolution:scale_factor*r
-    x=zeros(length(xyrange),length(xyrange))
-    y=zeros(length(xyrange),length(xyrange))
+    range = length(xyrange)
+
+    #setup xyrange
+    x = zeros(range , range)
+    y = zeros(range , range)
     for i in CartesianIndices(x)
-        x[i]=xyrange[i[2]]
-        y[i]=xyrange[i[1]]
+        x[i] = xyrange[i[2]]
+        y[i] = xyrange[i[1]]
     end
-    R = zeros(Float64, axes(x))
+
+    R = zeros(Complex{Float64}, axes(x))
 
     #calculate surface partial diferentials
-    p = -x./sqrt.(complex(r^2 .-(x.^2+y.^2)))
-    q = -y./sqrt.(complex(r^2 .-(x.^2+y.^2)))
+    p = zeros(Complex{Float64}, axes(x))
+    q = zeros(Complex{Float64}, axes(x))
+    for i in CartesianIndices(x)
+        p[i] = x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+    end
 
     #calculate reflectance
-    R = (ρ*(-I[1].*p-I[2].*q.+I[3]))./sqrt.(1 .+ p.^2+q.^2)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(complex(1 + p[i]^2 + q[i]^2))
+    end
 
     #filter
-    mask = ((r^2 .- (x.^2+y.^2) .> 0))
-    R = R.*mask
-    E = max.(0,Float64.(R))
+    for i in CartesianIndices(R)
+        if r^2 - (x[i]^2 + y[i]^2) <= 0
+            R[i] = 0.0
+        end
+    end
+
+    E = max.(0.0, Float64.(R))
 
     #convert to img and return
-    img = colorview(Gray, E)
+    img = Gray.(E)
     return img
 end

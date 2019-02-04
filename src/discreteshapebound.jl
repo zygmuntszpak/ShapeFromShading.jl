@@ -6,8 +6,8 @@ Attempts to produce a heightmap from a grayscale image by minimization of a set
 of Euler-Lagrange equations. This is done dicretly at each point in the image
 utilizing the second derivates of the surface normals their Fourier Transforms.
 
-This algarithm has the same backend as `DiscreteShape` but has its initial
-conditions bound.
+This algorithm has the same backend as `DiscreteShape` but has its initial
+conditions bound to provide a better solution.
 # Output
 Returns an M by N array (matching dimentions of original image) of Float `Z`
 that represents the reconstructed height at the point.
@@ -17,7 +17,7 @@ function signiture:
 ```
 Z = retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, albedo::Real, illumination_direction::Vector{T} where T <: Real, iterations::Int=2000)
 ```
-Note: if `albedo` and `illumination_direction` are not defiend they will be
+Note: if `albedo` and `illumination_direction` are not defined they will be
 calculated at runtime using `estimate_img_properties`.
 # Arguments
 The function arguments are described in more detail below.
@@ -62,24 +62,25 @@ function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, alb
     ρ = albedo
     I = illumination_direction
     E = Array{Float64}(img)
+    #downscale img
     E = E[1:2:end,1:2:end]
-    M,N=size(E)
-    p = zeros(axes(E))
-    q = zeros(axes(E))
-    δp = zeros(axes(E))
-    δq = zeros(axes(E))
-    R = zeros(axes(E))
+    M, N = size(E)
+    p = zeros(Complex{Float64},axes(E))
+    q = zeros(Complex{Float64},axes(E))
+    δp = zeros(Complex{Float64},axes(E))
+    δq = zeros(Complex{Float64},axes(E))
+    R = zeros(Complex{Float64},axes(E))
     Z = zeros(axes(E))
     for i in CartesianIndices(E)
-        if E[i]>0.75
-            Z[i]=-100*E[i]
+        if E[i] > 0.75
+            Z[i] = -100*E[i]
         else
-            Z[i]=0
+            Z[i] = 0.0
         end
     end
-    q,p = imgradients(Z, KernelFactors.sobel, "replicate")
+    q, p = Array{Complex{Float64}}.(imgradients(Z, KernelFactors.sobel, "replicate"))
     λ = 1000
-    w = centered(0.25*[0 1 0;1 0 1;0 1 0])
-    wx,wy = setup_transform_values(M,N)
-    return solve_EulerLagrange(ρ,I,iterations,δp,δq,w,p,q,R,λ,wx,wy,E,Z)
+    w = centered(0.25*[0.0 1.0 0.0;1.0 0.0 1.0;0.0 1.0 0.0])
+    wx, wy = setup_transform_values(M, N)
+    return solve_EulerLagrange(ρ, I, iterations, δp, δq, w, p, q, R, λ, wx, wy, E, Z)
 end

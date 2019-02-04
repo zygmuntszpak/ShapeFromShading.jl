@@ -54,33 +54,40 @@ surface(r, r, Z)
 """
 function retrieve_surface(algorithm::Shah, img::AbstractArray, iterations::Int=200)
     ρ,I,σ,τ = estimate_img_properties(img)
-    return retrieve_surface(Shah(),img,σ,τ,iterations)
+    return retrieve_surface(Shah(), img, σ, τ, iterations)
 end
 
 function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt::Real, iterations::Int=200)
-    σ,τ = slant,tilt
+    σ, τ = slant,tilt
     E = Float64.(img)
-    E = E.*255
-    M,N=size(E)
+    E = E .* 255
+    M, N = size(E)
     p = zeros(axes(E))
     q = zeros(axes(E))
     Z = zeros(axes(E))
-    Z_x = zeros(axes(E))
-    Z_y = zeros(axes(E))
+    Zx = zeros(axes(E))
+    Zy = zeros(axes(E))
     ix = cos(τ) * tan(σ)
     iy = sin(τ) * tan(σ)
     R = zeros(axes(E))
     @inbounds for i = 1:iterations
-        R = (cos(σ) .+ p .* cos(τ)*sin(σ) .+ q .* sin(τ)*sin(σ))./sqrt.(1 .+ p.^2 + q.^2)
-        R = max.(0,R)
+        #calculate reflectance map
+        R = (cos(σ) .+ p .* cos(τ) * sin(σ) .+ q .* sin(τ) * sin(σ)) ./ sqrt.(1 .+ p.^2 + q.^2) #18 aloc
+        R = max.(0, R)
         f = E .- R
-        δf_δZ =(p+q).*(ix.*p + iy.*q .+ 1)./(sqrt.((1 .+ p.^2 + q.^2).^3)*sqrt(1 + ix^2 + iy^2))-(ix+iy)./(sqrt.(1 .+ p.^2 + q.^2)*sqrt(1 + ix^2 + iy^2))
-        Z = Z - f./(δf_δZ .+ eps())
-        Z_x[2:M,:] = Z[1:M-1,:]
-        Z_y[:,2:N] = Z[:,1:N-1]
-        p = Z - Z_x;
-        q = Z - Z_y;
+        #calculate derivative of f in respect to Z
+        δf_δZ = (p + q) .* (ix .* p + iy .* q .+ 1) ./
+            (sqrt.((1 .+ p.^2 + q.^2).^3) * sqrt(1 + ix^2 + iy^2)) -
+            (ix + iy) ./ (sqrt.(1 .+ p.^2 + q.^2) * sqrt(1 + ix^2 + iy^2)) #39 aloc
+
+        #update surface and its normals
+        Z = Z - f ./ (δf_δZ .+ eps())
+        Zx[2:M,:] = Z[1:M-1,:]
+        Zy[:,2:N] = Z[:,1:N-1]
+        p = Z - Zx
+        q = Z - Zy
     end
+
     Z = mapwindow(median!, abs.(Z), (21,21))
     return Z
 end
