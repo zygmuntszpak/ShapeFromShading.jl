@@ -33,12 +33,13 @@ surface(r, r, Z)
 # Reference
 1. S. Elhabian, "Hands on Shape from Shading", Computer Vision and Image Processing, 2008.
 """
-function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, iterations::Int=2000)
+function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, iterations::Int=2000; smoothness::Int=1000)
     ρ,I,σ,τ = estimate_img_properties(img)
-    return retrieve_surface(DiscreteShapeBound(), img, ρ, I, iterations)
+    λ=smoothness
+    return retrieve_surface(DiscreteShapeBound(), img, ρ, I, iterations, smoothness=λ)
 end
 
-function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, albedo::Real, illumination_direction::Vector{T} where T <: Real, iterations::Int=2000)
+function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, albedo::Real, illumination_direction::Vector{T} where T <: Real, iterations::Int=2000; smoothness::Int=1000)
     ρ = albedo
     I = illumination_direction
     E = Array{Float64}(img)
@@ -60,6 +61,5 @@ function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, alb
         end
     end
     q, p = Array{Complex{Float64}}.(imgradients(Z, KernelFactors.sobel, "replicate"))
-    λ = 1000
-    return solve_EulerLagrange(ρ, I, iterations, p, q, R, λ, E, Z)
+    return solve_EulerLagrange(ρ, I, iterations, p, q, R, smoothness, E, Z)
 end
