@@ -19,7 +19,7 @@ function solve_EulerLagrange(ρ, I, iterations, p, q, R, λ, E, Z)
             #calculate reflectance map
             R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2
                 + q[i]^2)
-            #calculate partion derivatives of p and q in respect to p and q
+            #calculate partial derivatives of p and q in respect to p and q
             pq[i] = (1 + p[i]^2 + q[i]^2)
             dRδp[i] = ((-ρ * I[1]) / sqrt(pq[i])) + ((-I[1] * ρ) * p[i] - I[2]
                 * ρ * q[i] + I[3] * ρ) * (-1 * p[i] * (pq[i]^(-3/2)))
