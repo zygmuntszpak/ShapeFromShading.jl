@@ -43,16 +43,16 @@ function retrieve_surface(algorithm::DiscreteShapeBound, img::AbstractArray, alb
     ρ = albedo
     I = illumination_direction
     E = Array{Float64}(img)
-    #downscale img
+    # downscale img
     E = E[1:2:end,1:2:end]
 
-    #initialize variables
+    # initialize variables
     p = zeros(Complex{Float64},axes(E))
     q = zeros(Complex{Float64},axes(E))
     R = zeros(Complex{Float64},axes(E))
     Z = zeros(axes(E))
 
-    #apply bounding conditions
+    # apply bounding conditions
     for i in CartesianIndices(E)
         if E[i] > 0.75
             Z[i] = -100*E[i]

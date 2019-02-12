@@ -42,14 +42,14 @@ img = generate_surface(0.5, [0.5,0.1,0.7], radius = 25, scale_factor = 1.25, res
 1. S. Elhabian, "Hands on Shape from Shading", Computer Vision and Image Processing, 2008.
 """
 function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
-    #initialize values
+    # initialize values
     ρ = albedo
     I = illumination_direction
     r = radius
     xyrange = -scale_factor*r:resolution:scale_factor*r
     range = length(xyrange)
 
-    #setup xyrange
+    # setup xyrange
     x = zeros(range , range)
     y = zeros(range , range)
     for i in CartesianIndices(x)
@@ -59,7 +59,7 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
 
     R = zeros(Complex{Float64}, axes(x))
 
-    #calculate surface partial differentials
+    # calculate surface partial differentials
     p = zeros(Complex{Float64}, axes(x))
     q = zeros(Complex{Float64}, axes(x))
     for i in CartesianIndices(x)
@@ -67,13 +67,13 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
         q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
     end
 
-    #calculate reflectance
+    # calculate reflectance
     for i in CartesianIndices(R)
         R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(complex(1
             + p[i]^2 + q[i]^2))
     end
 
-    #filter
+    # filter
     for i in CartesianIndices(R)
         if r^2 - (x[i]^2 + y[i]^2) <= 0
             R[i] = 0.0
@@ -82,7 +82,7 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
 
     E = max.(0.0, Float64.(R))
 
-    #convert to img and return
+    # convert to img and return
     img = Gray.(E)
     return img
 end
