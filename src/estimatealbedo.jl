@@ -41,20 +41,20 @@ albedo, illumination_direction, slant, tilt = estimate_img_properties(img)
 """
 function estimate_img_properties(img::AbstractArray)
     E = Array{Float64}(img)
-    # calculate spatial gradient of img
+    #calculate spatial gradient of img
     Ey, Ex = imgradients(E, KernelFactors.sobel, "replicate")
-    # normalize gradient
+    #normalize gradient
     nEx = similar(E)
     nEy = similar(E)
     Exy = sqrt.((Ex.^2) .+ (Ey.^2))
     nEx = Ex ./ (Exy .+ eps())
     nEy = Ey ./ (Exy .+ eps())
 
-    # calculate means
+    #calculate means
     μ₁ = mean(E)
     μ₂ = mean(E.^2)
 
-    # calculate desired values
+    #calculate desired values
     g = sqrt(6 * (π^2) * μ₂ - 48 * (μ₁^2))
     ρ = g / π
     σ = acos((4 * μ₁) / g)

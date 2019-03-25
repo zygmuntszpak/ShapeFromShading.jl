@@ -41,25 +41,25 @@ img = generate_surface(0.5, [0.5,0.1,0.7], radius = 25, scale_factor = 1.25, res
 # Reference
 1. S. Elhabian, "Hands on Shape from Shading", Computer Vision and Image Processing, 2008.
 """
-function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
+function generate_surface(shape::SynthSphere, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
     # initialize values
     ρ = albedo
-    I = illumination_direction
+    I = normalize(illumination_direction)
     r = radius
     xyrange = -scale_factor*r:resolution:scale_factor*r
     range = length(xyrange)
 
-    # setup xyrange
+    #setup xyrange
     x = zeros(range , range)
     y = zeros(range , range)
     for i in CartesianIndices(x)
         x[i] = xyrange[i[2]]
-        y[i] = xyrange[i[1]]
+        y[i] = -xyrange[i[1]]
     end
 
     R = zeros(Complex{Float64}, axes(x))
 
-    # calculate surface partial differentials
+    #calculate surface partial differentials
     p = zeros(Complex{Float64}, axes(x))
     q = zeros(Complex{Float64}, axes(x))
     for i in CartesianIndices(x)
@@ -67,13 +67,13 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
         q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
     end
 
-    # calculate reflectance
+    #calculate reflectance
     for i in CartesianIndices(R)
         R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(complex(1
             + p[i]^2 + q[i]^2))
     end
 
-    # filter
+    #filter
     for i in CartesianIndices(R)
         if r^2 - (x[i]^2 + y[i]^2) <= 0
             R[i] = 0.0
@@ -82,7 +82,71 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
 
     E = max.(0.0, Float64.(R))
 
+    #convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function generate_surface(shape::Ripple, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 1, img_size::Int = 151, resolution::Real = 0.1)
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    for i = 1:img_size
+        for j = 1:img_size
+            p[i,j] = -((i - img_size / 2) * sin(sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2) / radius)) / (2 * radius * sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2))
+            q[i,j] = -((j - img_size / 2) * sin(sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2) / radius)) / (2 * radius * sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2))
+            if i - img_size / 2 == 0
+                p[i,j] = 0
+            end
+            if j - img_size / 2 == 0
+                q[i,j] = 0
+            end
+        end
+    end
+    R = zeros(Float64, img_size, img_size)
+    # calculate reflectance
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
     # convert to img and return
     img = Gray.(E)
     return img
+end
+
+function generate_photometric(I₁::Vector{T} where T <: Real = [0, 0, 1], I₂::Vector{T} where T <: Real = [0.5, 0, 1], I₃::Vector{T} where T <: Real = [0, 0.5, 1], albedo::Real=1; shape::SynthShape=SynthSphere())
+    img1 = generate_surface(shape, 1, I₁, radius = 5)
+    img2 = generate_surface(shape, 1, I₂, radius = 5)
+    img3 = generate_surface(shape, 1, I₃, radius = 5)
+    return img1, img2, img3
+end
+
+function sythetic_gradient(r::Real = 5)
+    scale_factor = 1.5
+    resolution = 0.1
+    xyrange = -scale_factor*r:resolution:scale_factor*r
+    range = length(xyrange)
+
+    # setup xyrange
+    x = zeros(range , range)
+    y = zeros(range , range)
+    for i in CartesianIndices(x)
+        x[i] = xyrange[i[2]]
+        y[i] = -xyrange[i[1]]
+    end
+    # calculate surface partial differentials
+    p = zeros(Complex{Float64}, axes(x))
+    q = zeros(Complex{Float64}, axes(x))
+    for i in CartesianIndices(x)
+        p[i] = x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        if r^2 <= (x[i]^2 + y[i]^2)
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+    return Float64.(p), Float64.(q)
 end

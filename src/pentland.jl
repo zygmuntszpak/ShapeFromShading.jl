@@ -98,25 +98,25 @@ function retrieve_surface(algorithm::Pentland, img::AbstractArray)
 end
 
 function retrieve_surface(algorithm::Pentland, img::AbstractArray, slant::Real, tilt::Real)
-    # find illumination and albedo
+    #find illumination and albedo
     σ = slant
     τ = tilt
     E = Complex{Float64}.(reinterpret(Float64, img))
-    # take Fourier transform
+    #take Fourier transform
     fft!(E)
     M, N = size(E)
 
-    # setup wx and wy
+    #setup wx and wy
     wx, wy = setup_transform_values(M, N)
 
-    # using the illumination direction calculate the transformed Z
+    #using the illumination direction calculate the transformed Z
     Zₜ = zeros(Complex{Float64}, size(E))
     for i in CartesianIndices(Zₜ)
         Zₜ[i] = E[i] / (-1im * wx[i] * cos(τ) * sin(σ) - 1im * wy[i] * sin(τ)
             * sin(σ))
     end
 
-    # recover Z
+    #recover Z
     ifft!(Zₜ)
     Z = zeros(Float64, size(E))
     for i in CartesianIndices(Z)

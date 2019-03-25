@@ -109,7 +109,7 @@ function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt
     δfδZ = zeros(axes(E))
     f = zeros(axes(E))
     @inbounds for i = 1:iterations
-        # calculate reflectance map
+        #calculate reflectance map
         for i in CartesianIndices(R)
             R[i] = (cos(σ) + p[i] * cos(τ) * sin(σ) + q[i] * sin(τ) * sin(σ)) /
                 sqrt(1 + p[i]^2 + q[i]^2)
@@ -118,7 +118,7 @@ function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt
             f[i] = E[i] - R[i]
         end
 
-        # calculate derivative of f in respect to Z and update Z
+        #calculate derivative of f in respect to Z and update Z
         for i in CartesianIndices(δfδZ)
             δfδZ[i] = (p[i] + q[i]) * (ix * p[i] + iy * q[i] + 1) / (sqrt((1
                 + p[i]^2 + q[i]^2)^3) * sqrt(1 + ix^2 + iy^2)) - (ix + iy) /
@@ -127,7 +127,7 @@ function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt
             Z[i] = Z[i] - f[i] / (δfδZ[i] + eps())
         end
 
-        # update surface normals
+        #update surface normals
         for i = 2:M
             for j = 1:N
                 Zx[i,j] = Z[i-1,j]
@@ -144,7 +144,7 @@ function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt
         end
     end
 
-    # smooth Z using a 21X21 median filter of the absolute values
+    #smooth Z using a 21X21 median filter of the absolute values
     for i in CartesianIndices(Z)
         Z[i] = abs(Z[i])
     end
