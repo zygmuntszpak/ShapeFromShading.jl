@@ -62,7 +62,22 @@ function setup_transform_values(M, N)
     wy = zeros(M, N)
     for i in CartesianIndices(wx)
         wx[i] = (2 * π * i[2]) / M
-        wy[i] = (2 * π * i[1]) / N
+        wy[i] = (2 * π * (N - i[1] + 1)) / N
     end
     return wx, wy
+end
+
+function convert_gradient(pIn::AbstractArray, qIn::AbstractArray)
+    p = Complex{Float64}.(pIn)
+    q = Complex{Float64}.(qIn)
+    wx, wy = setup_transform_values(last(size(p)),first(size(p)))
+    Cp = fft(p)
+    Cq = fft(q)
+    Z = zeros(Complex{Float64}, size(p))
+    for i in CartesianIndices(Z)
+        Z[i] = -1im * (wx[i] * Cp[i] + wy[i] * Cq[i]) / (wx[i]^2 + wy[i]^2)
+    end
+    ifft!(Z)
+    Z = abs.(Z)
+    return Z
 end
