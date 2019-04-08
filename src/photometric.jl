@@ -2,9 +2,9 @@ function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::Abs
     #setup illumination matrix
     N = zeros(Float64, 3, 3)
     for i = 1:3
-        N[1,i]=illumination_direction1[i]
-        N[2,i]=illumination_direction2[i]
-        N[3,i]=illumination_direction3[i]
+        N[1,i] = illumination_direction1[i]
+        N[2,i] = illumination_direction2[i]
+        N[3,i] = illumination_direction3[i]
     end
     Ninv = inv(N)
 
@@ -27,7 +27,6 @@ function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::Abs
     end
 
     #reconstruct surface
-    Z = convert_gradient(p, q)
-    # Z = mapwindow(median!, Z, (21,21))
+    Z = convert_gradient2(p, q)
     return Z, p, q
 end
