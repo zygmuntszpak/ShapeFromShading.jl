@@ -16,6 +16,8 @@ struct Photometric <: ShapeAlgorithm end
 abstract type SynthShape end
 struct SynthSphere <: SynthShape end
 struct Ripple <: SynthShape end
+struct Cake <: SynthShape end
+struct Cake2 <: SynthShape end
 
 include("common.jl")
 include("syntheticsurface.jl")
@@ -40,5 +42,12 @@ export
     generate_photometric,
     sythetic_gradient,
     SynthSphere,
-    Ripple
+    Ripple,
+    Cake,
+    Cake2,
+    convert_gradient2,
+    convert_gradient3,
+    convert_gradient4,
+    convert_gradient5,
+    ground_truth
 end # module

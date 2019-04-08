@@ -149,5 +149,5 @@ function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt
         Z[i] = abs(Z[i])
     end
     Z = mapwindow(median!, Z, (21,21))
-    return Z
+    return Z, p, q
 end

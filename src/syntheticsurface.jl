@@ -87,25 +87,31 @@ function generate_surface(shape::SynthSphere, albedo::Real = 0.5, illumination_d
     return img
 end
 
-function generate_surface(shape::Ripple, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 1, img_size::Int = 151, resolution::Real = 0.1)
+function generate_surface(shape::Ripple, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 1, img_size::Int = 151)
+    # initialize values
     ρ = albedo
     I = normalize(illumination_direction)
     p = zeros(Float64, img_size, img_size)
     q = zeros(Float64, img_size, img_size)
+    l = img_size
+    #calculate surface partial differentials
     for i = 1:img_size
         for j = 1:img_size
-            p[i,j] = -((i - img_size / 2) * sin(sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2) / radius)) / (2 * radius * sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2))
-            q[i,j] = -((j - img_size / 2) * sin(sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2) / radius)) / (2 * radius * sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2))
-            if i - img_size / 2 == 0
+            p[i,j] = -2 * ((i - l / 2) * sin(sqrt((i - l / 2)^2 + (j - l / 2)^2) / radius)) / (2 * radius * sqrt((i - l / 2)^2 + (j - l / 2)^2))
+
+            q[i,j] = -2 * ((j - l / 2) * sin(sqrt((i - l / 2)^2 + (j - l / 2)^2) / radius)) / (2 * radius * sqrt((i - l / 2)^2 + (j - l / 2)^2))
+
+            if i - l / 2 == 0
                 p[i,j] = 0
             end
-            if j - img_size / 2 == 0
+            if j - l / 2 == 0
                 q[i,j] = 0
             end
         end
     end
-    R = zeros(Float64, img_size, img_size)
+
     # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
     for i in CartesianIndices(R)
         R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
     end
@@ -117,14 +123,208 @@ function generate_surface(shape::Ripple, albedo::Real = 0.5, illumination_direct
     return img
 end
 
-function generate_photometric(I₁::Vector{T} where T <: Real = [0, 0, 1], I₂::Vector{T} where T <: Real = [0.5, 0, 1], I₃::Vector{T} where T <: Real = [0, 0.5, 1], albedo::Real=1; shape::SynthShape=SynthSphere())
-    img1 = generate_surface(shape, 1, I₁, radius = 5)
-    img2 = generate_surface(shape, 1, I₂, radius = 5)
-    img3 = generate_surface(shape, 1, I₃, radius = 5)
+function generate_surface(shape::Cake, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 70, img_size::Int = 151)
+    # initialize values
+    ρ = albedo
+    r = radius
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+
+    #calculate surface partial differentials
+    for i = 1:img_size
+        for j = 1:img_size
+            p[i,j] = -10*(2 * π * (j - l / 2)) * cos(((j - l / 2)^2 + (i - l / 2)^2) / (71 * r)) / (71 * r)
+
+            q[i,j] = 10*(2 * π * (i - l / 2)) * cos(((j - l / 2)^2 + (i - l / 2)^2) / (71 * r)) / (71 * r)
+
+            if sin(((j - img_size / 2)^2 + (i - img_size / 2)^2) / (71 * r)) < 0
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+
+            if (j - l / 2)^2 + (i - l / 2)^2 > (r)^2
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function generate_surface(shape::Cake2, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 70, img_size::Int = 151)
+    # initialize values
+    ρ = albedo
+    r = radius
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+
+    #calculate surface partial differentials
+    for i = 1:img_size
+        for j = 1:img_size
+            x = j - l / 2
+            y = i - l / 2
+            xy = sqrt((x)^2+(y)^2)
+            p[i,j] = (x^3 + (y^2 - 2000) * x) / (15000)
+
+            q[i,j] = -(y^3 + (x^2 - 2000) * y) / (15000)
+
+            if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 < 0
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+            if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 > 30
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+#generate three sythetic images
+function generate_photometric(I₁::Vector{T} where T <: Real = [0, 0, 1], I₂::Vector{T} where T <: Real = [0.5, 0, 1], I₃::Vector{T} where T <: Real = [0, 0.5, 1], albedo::Real=1; shape::SynthShape=SynthSphere(), r::Real = 10)
+    img1 = generate_surface(shape, 1, I₁, radius = r)
+    img2 = generate_surface(shape, 1, I₂, radius = r)
+    img3 = generate_surface(shape, 1, I₃, radius = r)
     return img1, img2, img3
 end
 
-function sythetic_gradient(r::Real = 5)
+# generate sythetic griadient map
+function sythetic_gradient(shape::SynthSphere; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
+    r = radius
+    xyrange = -scale_factor*r:resolution:scale_factor*r
+    range = length(xyrange)
+
+    # setup xyrange
+    x = zeros(range , range)
+    y = zeros(range , range)
+    for i in CartesianIndices(x)
+        x[i] = xyrange[i[2]]
+        y[i] = -xyrange[i[1]]
+    end
+
+    # calculate surface partial differentials
+    p = zeros(Complex{Float64}, axes(x))
+    q = zeros(Complex{Float64}, axes(x))
+    for i in CartesianIndices(x)
+        p[i] = x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        if r^2 <= (x[i]^2 + y[i]^2)
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+
+    return Float64.(p), Float64.(q)
+end
+
+# generate sythetic griadient map
+function sythetic_gradient(shape::Ripple; radius::Real = 1, img_size::Int = 151)
+    # initialize values
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    r = radius
+
+    # calculate surface partial differentials
+    for i = 1:img_size
+        for j = 1:img_size
+            p[i,j] = -2*((i - l / 2) * sin(sqrt((i - l / 2)^2 + (j - l / 2)^2) / r)) / (2 * r * sqrt((i - l / 2)^2 + (j - l / 2)^2))
+
+            q[i,j] = -2*((j - l / 2) * sin(sqrt((i - l / 2)^2 + (j - l / 2)^2) / r)) / (2 * r * sqrt((i - l / 2)^2 + (j - l / 2)^2))
+
+            if i - l / 2 == 0
+                p[i,j] = 0
+            end
+
+            if j - l / 2 == 0
+                q[i,j] = 0
+            end
+        end
+    end
+
+    return p, q
+end
+
+# generate sythetic griadient map
+function sythetic_gradient(shape::Cake; radius::Real = 70, img_size::Int = 151)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    for i = 1:img_size
+        for j = 1:img_size
+            p[i,j] = -10*(2 * π * (j - l / 2)) * cos(π*((j - l / 2)^2 + (i - l / 2)^2) / (71 * r))
+
+            q[i,j] = 10*(2 * π * (i - l / 2)) * cos(π*((j - l / 2)^2 + (i - l / 2)^2) / (71 * r))
+
+            if sin(((j - l / 2)^2 + (i - l / 2)^2) / (71 * r)) < 0
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+            if (j - l / 2)^2 + (i - l / 2)^2 > (r)^2
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+        end
+    end
+    return p, q
+end
+
+function sythetic_gradient(shape::Cake2; radius::Real = 70, img_size::Int = 151)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    for i = 1:img_size
+        for j = 1:img_size
+            x = j - l / 2
+            y = i - l / 2
+            xy = sqrt((x)^2+(y)^2)
+            p[i,j] = (x^3 + (y^2 - 2000) * x) / (15000)
+
+            q[i,j] = -(y^3 + (x^2 - 2000) * y) / (15000)
+
+            if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 < 0
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+            if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 > 30
+                p[i,j] = 0
+                q[i,j] = 0
+            end
+        end
+    end
+    return p, q
+end
+
+function ground_truth(shape::SynthSphere, r::Real = 5)
     scale_factor = 1.5
     resolution = 0.1
     xyrange = -scale_factor*r:resolution:scale_factor*r
@@ -138,15 +338,60 @@ function sythetic_gradient(r::Real = 5)
         y[i] = -xyrange[i[1]]
     end
     # calculate surface partial differentials
-    p = zeros(Complex{Float64}, axes(x))
-    q = zeros(Complex{Float64}, axes(x))
+    Z = zeros(Complex{Float64}, axes(x))
     for i in CartesianIndices(x)
-        p[i] = x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
-        q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        Z[i] = sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
         if r^2 <= (x[i]^2 + y[i]^2)
-            p[i] = 0
-            q[i] = 0
+            Z[i] = 0
         end
     end
-    return Float64.(p), Float64.(q)
+    return Float64.(Z)
+end
+
+function ground_truth(shape::Ripple, r::Real = 5)
+    img_size = 151
+    radius = r
+    Z = zeros(Float64, img_size, img_size)
+    for i = 1:img_size
+        for j = 1:img_size
+            Z[i,j]=cos(sqrt((i - img_size / 2)^2 + (j - img_size / 2)^2) / radius)
+        end
+    end
+    return Z
+end
+
+function ground_truth(shape::Cake, r::Real = 70)
+    img_size = 151
+    Z = zeros(Float64, img_size, img_size)
+    for i = 1:img_size
+        for j = 1:img_size
+            Z[i,j] = sin(π*((j - img_size / 2)^2 + (i - img_size / 2)^2) / (71 * r))
+            if Z[i,j] < 0
+                Z[i,j] = 0
+            end
+            if (j - img_size / 2)^2 + (i - img_size / 2)^2 > r^2
+                Z[i,j] = 0
+            end
+        end
+    end
+    return Z
+end
+
+function ground_truth(shape::Cake2, r::Real = 70)
+    l = img_size = 151
+    Z = zeros(Float64, img_size, img_size)
+    for i = 1:img_size
+        for j = 1:img_size
+            x = j - l / 2
+            y = i - l / 2
+            xy = sqrt((x)^2+(y)^2)
+            Z[i,j] = -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000
+            if Z[i,j] < 0
+                Z[i,j] = 0
+            elseif Z[i,j] > 30
+                Z[i,j] = 30
+            end
+        end
+    end
+    return Z
 end
