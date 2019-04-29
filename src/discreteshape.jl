@@ -134,8 +134,6 @@ function retrieve_surface(algorithm::DiscreteShape, img::AbstractArray, albedo::
     ρ = albedo
     I = illumination_direction
     E = Array{Float64}(img)
-    #downscale img
-    E = E[1:2:end,1:2:end]
 
     #initialize variables
     p = zeros(Complex{Float64},axes(E))
