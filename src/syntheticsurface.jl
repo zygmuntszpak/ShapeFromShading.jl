@@ -41,10 +41,54 @@ img = generate_surface(0.5, [0.5,0.1,0.7], radius = 25, scale_factor = 1.25, res
 # Reference
 1. S. Elhabian, "Hands on Shape from Shading", Computer Vision and Image Processing, 2008.
 """
-function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
+function generate_surface(shape::SynthSphere, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1)
     # initialize values
     ρ = albedo
-    I = illumination_direction
+    I = normalize(illumination_direction)
+    r = radius
+    xyrange = -scale_factor*r:resolution:scale_factor*r
+    range = length(xyrange)
+
+    #setup xyrange
+    x = zeros(range , range)
+    y = zeros(range , range)
+    for i in CartesianIndices(x)
+        x[i] = xyrange[i[2]]
+        y[i] = -xyrange[i[1]]
+    end
+
+    R = zeros(Complex{Float64}, axes(x))
+
+    #calculate surface partial differentials
+    p = zeros(Complex{Float64}, axes(x))
+    q = zeros(Complex{Float64}, axes(x))
+    for i in CartesianIndices(x)
+        p[i] = -x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        q[i] = -y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+    end
+
+    #calculate reflectance
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(complex(1
+            + p[i]^2 + q[i]^2))
+    end
+
+    #filter
+    for i in CartesianIndices(R)
+        if r^2 - (x[i]^2 + y[i]^2) <= 0
+            R[i] = 0.0
+        end
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    #convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+# generate sythetic griadient map
+function sythetic_gradient(shape::SynthSphere; radius::Real = 50, scale_factor::Real = 1.5, resolution::Real = 0.1, noise::Real = 0)
     r = radius
     xyrange = -scale_factor*r:resolution:scale_factor*r
     range = length(xyrange)
@@ -54,28 +98,401 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
     y = zeros(range , range)
     for i in CartesianIndices(x)
         x[i] = xyrange[i[2]]
-        y[i] = xyrange[i[1]]
+        y[i] = -xyrange[i[1]]
     end
-
-    R = zeros(Complex{Float64}, axes(x))
 
     # calculate surface partial differentials
     p = zeros(Complex{Float64}, axes(x))
     q = zeros(Complex{Float64}, axes(x))
     for i in CartesianIndices(x)
-        p[i] = x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
-        q[i] = y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        p[i] = -x[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        q[i] = -y[i] / sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        if (r)^2 <= (x[i]^2 + y[i]^2)
+            p[i] = 0
+            q[i] = 0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+
+    return Float64.(p), Float64.(q)
+end
+
+#generate ground truth height map
+function ground_truth(shape::SynthSphere, r::Real = 5)
+    scale_factor = 1.5
+    resolution = 0.1
+    xyrange = -scale_factor*r:resolution:scale_factor*r
+    range = length(xyrange)
+
+    # setup xyrange
+    x = zeros(range , range)
+    y = zeros(range , range)
+    for i in CartesianIndices(x)
+        x[i] = xyrange[i[2]]
+        y[i] = -xyrange[i[1]]
+    end
+    # calculate surface partial differentials
+    Z = zeros(Complex{Float64}, axes(x))
+    for i in CartesianIndices(x)
+        Z[i] = sqrt(complex(r^2 - (x[i]^2 + y[i]^2)))
+        if r^2 <= (x[i]^2 + y[i]^2)
+            Z[i] = 0
+        end
+    end
+    return Float64.(Z)
+end
+
+function setup_xy(dim)
+    x = zeros(dim , dim)
+    y = zeros(dim , dim)
+    xyrange = ceil(Int, -dim/2):floor(Int, (dim/2))
+    for i in CartesianIndices(x)
+        x[i] = xyrange[i[2]]
+        y[i] = -xyrange[i[1]]
+    end
+    return x,y
+end
+
+function generate_surface(shape::Ripple, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 1, img_size::Int = 151)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x, y = setup_xy(l)
+    #calculate surface partial differentials
+    for i in CartesianIndices(x)
+        p[i] = -2 * (x[i] * sin(sqrt(y[i]^2 + x[i]^2) / radius)) / (2 * radius * sqrt(y[i]^2 + x[i]^2))
+
+        q[i] = -2 * (y[i] * sin(sqrt(y[i]^2 + x[i]^2) / radius)) / (2 * radius * sqrt(y[i]^2 + x[i]^2))
+
+        if x[i] == 0 && y[i] == 0
+            q[i] = 0
+            p[i] = 0
+        end
     end
 
     # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
     for i in CartesianIndices(R)
-        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(complex(1
-            + p[i]^2 + q[i]^2))
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
     end
 
-    # filter
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+# generate sythetic griadient map
+function sythetic_gradient(shape::Ripple; radius::Real = 1, img_size::Int = 151, noise::Real = 0)
+    # initialize values
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x, y = setup_xy(l)
+    #calculate surface partial differentials
+    for i in CartesianIndices(x)
+        p[i] = -2 * (x[i] * sin(sqrt(y[i]^2 + x[i]^2) / radius)) / (2 * radius * sqrt(y[i]^2 + x[i]^2))
+
+        q[i] = -2 * (y[i] * sin(sqrt(y[i]^2 + x[i]^2) / radius)) / (2 * radius * sqrt(y[i]^2 + x[i]^2))
+
+        if y[i] == 0.0 && x[i] == 0.0
+            p[i] = 0.0
+            q[i] = 0.0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Ripple, r::Real = 5)
+    l = 151
+    radius = r
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        Z[i]=75*cos(sqrt(y[i]^2 + x[i]^2) / radius)
+    end
+    return Z
+end
+
+function generate_surface(shape::Ripple2, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 1, img_size::Int = 151)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x, y = setup_xy(l)
+    #calculate surface partial differentials
+    for i in CartesianIndices(x)
+        sqd = x[i]^2 + y[i]^2
+        ed = sqrt(sqd)
+        p[i] = -75 * (x[i] * exp(-(sqd) / 1250) * (625 * sin(ed/r) + r * ed * cos(ed/r))) / (125 * (2^(3 / 2)) * sqrt(π) * r * ed)
+
+        q[i] = -75 * (y[i] * exp(-(sqd) / 1250) * (625 * sin(ed/r) + r * ed * cos(ed/r))) / (125 * (2^(3 / 2)) * sqrt(π) * r * ed)
+
+        if x[i] == 0 && y[i] == 0
+            q[i] = 0
+            p[i] = 0
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
     for i in CartesianIndices(R)
-        if r^2 - (x[i]^2 + y[i]^2) <= 0
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+# generate sythetic griadient map
+function sythetic_gradient(shape::Ripple2; radius::Real = 1, img_size::Int = 151, noise::Real = 0)
+    # initialize values
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x, y = setup_xy(l)
+    #calculate surface partial differentials
+    for i in CartesianIndices(x)
+        sqd = x[i]^2 + y[i]^2
+        ed = sqrt(sqd)
+        p[i] = -75 * (x[i] * exp(-(sqd) / 1250) * (625 * sin(ed/r) + r * ed * cos(ed/r))) / (125 * (2^(3 / 2)) * sqrt(π) * r * ed)
+
+        q[i] = -75 * (y[i] * exp(-(sqd) / 1250) * (625 * sin(ed/r) + r * ed * cos(ed/r))) / (125 * (2^(3 / 2)) * sqrt(π) * r * ed)
+
+        if y[i] == 0.0 && x[i] == 0.0
+            p[i] = 0.0
+            q[i] = 0.0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Ripple2, r::Real = 5)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        Z[i] = 75 * cos(sqrt(x[i]^2 + y[i]^2)/r) * 62.5 * (1/sqrt(pi * 1250)) * exp(-((x[i]^2 + y[i]^2) / 1250))
+    end
+    return Z
+end
+
+function generate_surface(shape::Cake, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 70, img_size::Int = 151)
+    # initialize values
+    ρ = albedo
+    r = radius
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    #calculate surface partial differentials
+    for i in CartesianIndices(x)
+        p[i] = 10*(2 * π * x[i]) * cos((x[i]^2 + y[i]^2) / (71 * r)) / (71 * r)
+
+        q[i] = 10*(2 * π * y[i]) * cos((x[i]^2 + y[i]^2) / (71 * r)) / (71 * r)
+
+        if sin((x[i]^2 + y[i]^2) / (71 * r)) < 0
+            p[i] = 0
+            q[i] = 0
+        end
+
+        if x[i]^2 + y[i]^2 > r^2
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+# generate sythetic griadient map
+function sythetic_gradient(shape::Cake; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    #calculate surface partial differentials
+    for i in CartesianIndices(x)
+        p[i] = (150 * π * x[i]) * cos(π * (x[i]^2 + y[i]^2) / (71 * r)) / (71 * r)
+
+        q[i] = (150 * π * y[i]) * cos(π * (x[i]^2 + y[i]^2) / (71 * r)) / (71 * r)
+
+        if sin((x[i]^2 + y[i]^2) / (71 * r)) < 0
+            p[i] = 0
+            q[i] = 0
+        end
+
+        if x[i]^2 + y[i]^2 > r^2
+            p[i] = 0
+            q[i] = 0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Cake, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        Z[i] = 75 * sin(π*(x[i]^2 + y[i]^2) / (71 * r))
+        if Z[i] < 0
+            Z[i] = 0
+        end
+        if x[i]^2 + y[i]^2 > r^2
+            Z[i] = 0
+        end
+    end
+    return Z
+end
+
+function generate_surface(shape::Cake2, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 70, img_size::Int = 151)
+    # initialize values
+    ρ = albedo
+    r = radius
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        xy = sqrt((x[i])^2+(y[i])^2)
+        p[i] = -(x[i]^3 + (y[i]^2 - 2000) * x[i]) / (15000)
+
+        q[i] = -(y[i]^3 + (x[i]^2 - 2000) * y[i]) / (15000)
+
+        if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 < 0
+            p[i] = 0
+            q[i] = 0
+        end
+        if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 > 30
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function sythetic_gradient(shape::Cake2; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        xy = sqrt(x[i]^2 + y[i]^2)
+        p[i] = -(x[i]^3 + (y[i]^2 - 2000) * x[i]) / 15000
+
+        q[i] = -(y[i]^3 + (x[i]^2 - 2000) * y[i]) / 15000
+
+        if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 < 0
+            p[i] = 0
+            q[i] = 0
+        end
+        if -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60)/60000 > 30
+            p[i] = 0
+            q[i] = 0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Cake2, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        xy = sqrt((x[i])^2+(y[i])^2)
+        Z[i] = -(xy + 60)*(xy + 20)*(xy - 20)*(xy - 60) / 60000
+        if Z[i] < 0
+            Z[i] = 0
+        elseif Z[i] > 30
+            Z[i] = 30
+        end
+    end
+    return Z
+end
+
+function generate_surface(shape::Cup, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; img_size::Int = 151, radius::Real = 0)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        if abs(x[i] + 20) < 35.0 && abs(y[i]) < 45
+            p[i] = -(x[i] + 20) / sqrt(35^2 - (x[i] + 20)^2)
+            q[i] = 0
+        elseif (x[i]) >= 15 && 25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2 > 0
+            p[i] = -((x[i] - 10)*(sqrt((x[i] - 10)^2+y[i]^2)-25))/(sqrt((x[i] - 10)^2+y[i]^2)*sqrt(25-(sqrt((x[i] - 10)^2+y[i]^2)-25)^2))
+            q[i] = -(y[i]*(sqrt(y[i]^2+(x[i] - 10)^2)-25))/(sqrt(y[i]^2+(x[i] - 10)^2)*sqrt(25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2))
+        else
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    for i in CartesianIndices(R)
+        if x[i] + 20 <= -35 || abs(y[i]) >= 45
+            R[i] = 0.0
+        elseif x[i] >= 15 && 25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2 <= 0
             R[i] = 0.0
         end
     end
@@ -85,4 +502,448 @@ function generate_surface(albedo::Real = 0.5, illumination_direction::Vector{T} 
     # convert to img and return
     img = Gray.(E)
     return img
+end
+
+function sythetic_gradient(shape::Cup; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        if abs(x[i] + 20) < 35.0 && abs(y[i]) < 45
+            p[i] = -(x[i] + 20) / sqrt(35^2 - (x[i] + 20)^2)
+            q[i] = 0
+        elseif (x[i]) >= 15 && 25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2 > 0
+            p[i] = -((x[i] - 10)*(sqrt((x[i] - 10)^2+y[i]^2)-25))/(sqrt((x[i] - 10)^2+y[i]^2)*sqrt(25-(sqrt((x[i] - 10)^2+y[i]^2)-25)^2))
+            q[i] = -(y[i]*(sqrt(y[i]^2+(x[i] - 10)^2)-25))/(sqrt(y[i]^2+(x[i] - 10)^2)*sqrt(25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2))
+        else
+            p[i] = 0
+            q[i] = 0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Cup, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    for i in CartesianIndices(x)
+        if abs(x[i] + 20) < 35.0 && abs(y[i]) < 45
+            Z[i] = sqrt(35^2 - (x[i] + 20)^2)
+        elseif (x[i]) >= 15 && 25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2 > 0
+            Z[i] = 25-(sqrt(y[i]^2+(x[i] - 10)^2)-25)^2
+        else
+            Z[i] = 0
+        end
+    end
+    return Z
+end
+
+function f(x)
+    return -138.24 * x^6 + 92.16 * x^5 + 84.48 * x^4 - 48.64 * x^3 - 17.60 * x^2 + 6.4 * x + 3.2
+end
+
+function f′(x)
+    return -(20736*x^5-11520*x^4-8448*x^3+3648*x^2+880*x-160)/25
+end
+
+function generate_surface(shape::SynthVase, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; img_size::Int = 151, radius::Real = 0)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        if f(x[i]/12.8)^2 >= y[i]^2
+            p[i] = f(x[i]/12.8) * f′(x[i]/12.8) / sqrt(f(x[i]/12.8)^2 - y[i]^2)
+            q[i] = - y[i] / sqrt(f(x[i]/12.8)^2 - y[i]^2)
+        else
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+        if f(x[i]/12.8)^2 < y[i]^2
+            R[i] = 0
+        end
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function sythetic_gradient(shape::SynthVase; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        if f(x[i]/12.8)^2 >= y[i]^2
+            p[i] = f(x[i]/12.8) * f′(x[i]/12.8) / sqrt(f(x[i]/12.8)^2 - y[i]^2)
+            q[i] = - y[i] / sqrt(f(x[i]/12.8)^2 - y[i]^2)
+        else
+            p[i] = 0
+            q[i] = 0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::SynthVase, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        if f(x[i]/12.8)^2 >= y[i]^2
+            Z[i] = sqrt(f(x[i]/12.8)^2 - y[i]^2)
+        else
+            Z[i] = 0
+        end
+    end
+    return Z
+end
+
+function generate_surface(shape::Tent, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; img_size::Int = 151, radius::Real = 0)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        if abs(x[i]) <= 5.12 && abs(y[i]) <= 5.12
+            if -2 * abs(x[i]) + 10.24 < -abs(y[i]) + 5.12
+                p[i] = -2
+                q[i] = 0
+            else
+                p[i] = 0
+                q[i] = -1
+            end
+        else
+            p[i] = 0
+            q[i] = 0
+        end
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function sythetic_gradient(shape::Tent; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        if abs(x[i]) <= 5.12 && abs(y[i]) <= 5.12
+            if -2 * abs(x[i]) + 10.24 < -abs(y[i]) + 5.12
+                p[i] = -2 * sign(x[i])
+                q[i] = 0
+            else
+                p[i] = 0
+                q[i] = -1 * sign(y[i])
+            end
+        else
+            p[i] = 0
+            q[i] = 0
+        end
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Tent, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        if abs(x[i]) <= 5.12 && abs(y[i]) <= 5.12
+            Z[i] = min(-2 * abs(x[i]) + 10.24, -abs(y[i]) + 5.12)
+        else
+            Z[i] = 0
+        end
+    end
+    return Z
+end
+
+function g(x,y)
+    return 3 * (1 - x)^2 * exp(-x^2 - (y + 1)^2) - 10 * (x / 5 - x^3 - y^5) * exp(-x^2 - y^2) - (1/3) * exp(-(x + 1)^2 - y^2)
+end
+
+function g′(x,y)
+    p = -(2*(3*(10*exp(2*y+1)*x^4+3*x^3-17*exp(2*y+1)*x^2-6*x^2+10*y^5*exp(2*y+1)*x+exp(2*y+1)+3)*exp(2*x)-exp(2*y)*(x+1))*exp(-(x+1)^2-y*(y+2)))/3
+    q = -6*(1-x)^2*(y+1)*exp(-(y+1)^2-x^2)+(2*y*exp(-y^2-(x+1)^2))/3+20*y*(-y^5-x^3+x/5)*exp(-y^2-x^2)+50*y^4*exp(-y^2-x^2)
+    return p,q
+end
+
+function generate_surface(shape::Dem, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; img_size::Int = 151, radius::Real = 0)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        p[i], q[i] = g′(x[i],y[i])
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function sythetic_gradient(shape::Dem; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        p[i], q[i] = g′(x[i],y[i])
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::Dem, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    x = x ./ 1.6
+    y = y ./ maximum(y) .* 6.4
+    y = y ./ 1.6
+    for i in CartesianIndices(x)
+        Z[i] = g(x[i], y[i])
+    end
+    return Z
+end
+
+function generate_surface(shape::SynthGaussian, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; img_size::Int = 151, radius::Real = 0)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        p[i] = -35*x[i]*exp(-((x[i]^2)/2+(y[i]^2)/2))
+        q[i] =  -35*y[i]*exp(-((x[i]^2)/2+(y[i]^2)/2))
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function sythetic_gradient(shape::SynthGaussian; radius::Real = 70, img_size::Int = 151, noise::Real = 0)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        p[i] = -35*x[i]*exp(-((x[i]^2)/2+(y[i]^2)/2))
+        q[i] =  -35*y[i]*exp(-((x[i]^2)/2+(y[i]^2)/2))
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::SynthGaussian, r::Real = 70)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 4
+    y = y ./ maximum(y) .* 4
+    for i in CartesianIndices(x)
+        Z[i] = 35*exp(-((x[i]^2)/2+(y[i]^2)/2))
+    end
+    return Z
+end
+
+function generate_surface(shape::SuperGaussian, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; img_size::Int = 151, radius::Real = 0, P::Real = 2)
+    # initialize values
+    ρ = albedo
+    I = normalize(illumination_direction)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        p[i] = -35*P*x[i]*exp(-((x[i]^2)/2+(y[i]^2)/2)^P)*((x[i]^2)/2+(y[i]^2)/2)^(P-1)
+        q[i] = -35*P*y[i]*exp(-((x[i]^2)/2+(y[i]^2)/2)^P)*((x[i]^2)/2+(y[i]^2)/2)^(P-1)
+    end
+
+    # calculate reflectance
+    R = zeros(Float64, img_size, img_size)
+    for i in CartesianIndices(R)
+        R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+    end
+
+    E = max.(0.0, Float64.(R))
+
+    # convert to img and return
+    img = Gray.(E)
+    return img
+end
+
+function sythetic_gradient(shape::SuperGaussian; radius::Real = 70, img_size::Int = 151, noise::Real = 0, P::Real = 2)
+    p = zeros(Float64, img_size, img_size)
+    q = zeros(Float64, img_size, img_size)
+    r = radius
+    l = img_size
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 6.4
+    y = y ./ maximum(y) .* 6.4
+    for i in CartesianIndices(x)
+        p[i] = -35*P*x[i]*exp(-((x[i]^2)/2+(y[i]^2)/2)^P)*((x[i]^2)/2+(y[i]^2)/2)^(P-1)
+        q[i] = -35*P*y[i]*exp(-((x[i]^2)/2+(y[i]^2)/2)^P)*((x[i]^2)/2+(y[i]^2)/2)^(P-1)
+        p[i] = p[i] + rand(Normal(0, noise))
+        q[i] = q[i] + rand(Normal(0, noise))
+    end
+    return p, q
+end
+
+#generate ground truth height map
+function ground_truth(shape::SuperGaussian, r::Real = 70; P::Real = 2)
+    l = 151
+    Z = zeros(Float64, l, l)
+    x,y = setup_xy(l)
+    x = x ./ maximum(x) .* 4
+    y = y ./ maximum(y) .* 4
+    for i in CartesianIndices(x)
+        Z[i] = 35*exp(-((x[i]^2)/2+(y[i]^2)/2)^P)
+    end
+    return Z
+end
+
+#generate three sythetic images
+function generate_photometric(I₁::Vector{T} where T <: Real = [0, 0, 1], I₂::Vector{T} where T <: Real = [0.5, 0, 1], I₃::Vector{T} where T <: Real = [0, 0.5, 1], albedo::Real=1; shape::SynthShape=SynthSphere(), r::Real = 10)
+    img1 = generate_surface(shape, 1, I₁, radius = r)
+    img2 = generate_surface(shape, 1, I₂, radius = r)
+    img3 = generate_surface(shape, 1, I₃, radius = r)
+    return img1, img2, img3
+end
+
+#allowsfor interactive generation of images
+function createImage()
+    slider1 = widget(-1:0.01:1)
+    slider2 = widget(-1:0.01:1)
+    slider3 = widget(0.01:0.01:1)
+    slider4 = widget(1:100, value = 5)
+    r = slider4[]
+    I = [slider1[],slider2[],slider3[]]
+    img = generate_surface(SynthSphere(), 1, I, radius = 5)
+    dis = Observable(img)
+    shape = SynthSphere()
+    shapeOptions = dropdown(OrderedDict("Sphere"=>SynthSphere(), "Ripple"=>Ripple(), "Ripple2"=>Ripple2(), "Cake"=>Cake(), "Cake2"=>Cake2(), "Vase"=>SynthVase(), "Dem"=>Dem(), "Tent"=>Tent(), "Gaussian"=>SynthGaussian(), "Super Gaussian"=>SuperGaussian()))
+    ui = Interact.vbox(slider1,slider2,slider3,dis,shapeOptions,slider4)
+    w = Window()
+    body!(w,ui)
+
+    on(slider1) do val
+        I = [slider1[],slider2[],slider3[]]
+        img = generate_surface(shape, 1, I, radius = r)
+        dis[] = img
+    end
+
+    on(slider2) do val
+        I = [slider1[],slider2[],slider3[]]
+        img = generate_surface(shape, 1, I, radius = r)
+        dis[] = img
+    end
+
+    on(slider3) do val
+        I = [slider1[],slider2[],slider3[]]
+        img = generate_surface(shape, 1, I, radius = r)
+        dis[] = img
+    end
+
+    on(slider4) do val
+        r = slider4[]
+        img = generate_surface(shape, 1, I, radius = r)
+        dis[] = img
+    end
+
+    on(shapeOptions) do val
+        shape = shapeOptions[]
+        img = generate_surface(shape, 1, I, radius = r)
+        dis[] = img
+    end
 end
