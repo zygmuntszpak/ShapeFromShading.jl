@@ -1,4 +1,4 @@
-function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::AbstractArray, img3::AbstractArray, illumination_direction1::Vector{T} where T <: Real, illumination_direction2::Vector{T} where T <: Real, illumination_direction3::Vector{T} where T <: Real)
+function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::AbstractArray, img3::AbstractArray, illumination_direction1::Vector{T} where T <: Real, illumination_direction2::Vector{T} where T <: Real, illumination_direction3::Vector{T} where T <: Real; Integration_Scheme = Horn())
     #setup illumination matrix
     N = zeros(Float64, 3, 3)
     for i = 1:3
@@ -20,13 +20,13 @@ function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::Abs
         I = [I₁[i], I₂[i], I₃[i]]
         n = Ninv * I
         if n[3] == 0.0
-            n = [0,0,-1.0]
+            n = [0.0,0.0,-1.0]
         end
         p[i] = -n[1] / n[3]
         q[i] = -n[2] / n[3]
     end
 
     #reconstruct surface
-    Z = convert_gradient2(p, q)
+    Z = convert_gradient(Integration_Scheme, p, q)
     return Z, p, q
 end
