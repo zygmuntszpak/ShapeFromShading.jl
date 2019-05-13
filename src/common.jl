@@ -81,17 +81,21 @@ function solve_EulerLagrange2(ρ, I, iterations, p, q, R, λ, E, Z)
     return p, q
 end
 
-#only works for odd numbers
-function setup_transform_values(M, N)
-    # wx = zeros(M, N)
-    # wy = zeros(M, N)
+#only works for odd dims
+function setup_transform_values(N, M)
     wx = [j for i in 1:M, j in -0.5:(1/(N-1)):0.5]
     wy = [j for j in -0.5:(1/(M-1)):0.5, i in 1:N]
     wx = ifftshift(wx)
     wy = ifftshift(wy)
-    # for i in CartesianIndices(wx)
-    #     wx[i] =
-    #     wy[i] =
-    # end
+    return wx, wy
+end
+
+function setup_transform_values_pentland(M, N)
+    wx = zeros(M, N)
+    wy = zeros(M, N)
+    for i in CartesianIndices(wx)
+        wx[i] = (2 * π * i[2]) / M
+        wy[i] = (2 * π * (N - i[1] + 1)) / N
+    end
     return wx, wy
 end

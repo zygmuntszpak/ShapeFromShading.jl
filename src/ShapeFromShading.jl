@@ -7,6 +7,8 @@ using DSP
 using LinearAlgebra
 using Distributions
 using Makie
+using Interact
+using Blink
 
 abstract type ShapeAlgorithm end
 struct DiscreteShape <: ShapeAlgorithm end
@@ -32,6 +34,8 @@ struct Cup <: SynthShape end
 struct SynthVase <: SynthShape end
 struct Tent <: SynthShape end
 struct Dem <: SynthShape end
+struct SynthGaussian <: SynthShape end
+struct SuperGaussian <: SynthShape end
 
 include("common.jl")
 include("syntheticsurface.jl")
@@ -74,5 +78,8 @@ export
     Durou,
     benchmark_iterative,
     benchmark_noniterative,
-    compare_benchmark
+    compare_benchmark,
+    SynthGaussian,
+    SuperGaussian,
+    createImage
 end # module

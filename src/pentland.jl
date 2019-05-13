@@ -107,7 +107,7 @@ function retrieve_surface(algorithm::Pentland, img::AbstractArray, slant::Real, 
     M, N = size(E)
 
     #setup wx and wy
-    wx, wy = setup_transform_values(M, N)
+    wx, wy = setup_transform_values_pentland(M, N)
 
     #using the illumination direction calculate the transformed Z
     Zₜ = zeros(Complex{Float64}, size(E))

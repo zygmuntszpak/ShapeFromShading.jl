@@ -12,21 +12,6 @@ function convert_gradient(Scheme::Frankot, pIn::AbstractArray, qIn::AbstractArra
     return Z
 end
 
-# function convert_gradient(Scheme::Frankot, pIn::AbstractArray, qIn::AbstractArray)
-#     p = Complex{Float64}.(pIn)
-#     q = Complex{Float64}.(qIn)
-#     wx, wy = setup_transform_values(last(size(p)),first(size(p)))
-#     Cp = fft(p)
-#     Cq = fft(q)
-#     Z = zeros(Complex{Float64}, size(p))
-#     for i in CartesianIndices(Z)
-#         Z[i] = -1im * (wx[i] * Cp[i] + wy[i] * Cq[i]) / (2*π*(wx[i]^2 + wy[i]^2))
-#     end
-#     ifft!(Z)
-#     Z = abs.(Z)
-#     return Z
-# end
-
 #converts gradient field into heightmap using average of two integrals
 function convert_gradient(Scheme::Path, p::AbstractArray, q::AbstractArray)
     R, C = size(p)
