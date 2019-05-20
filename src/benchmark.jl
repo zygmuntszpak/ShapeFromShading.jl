@@ -33,8 +33,8 @@ function benchmark_iterative(Integration_Scheme::IntegrationScheme, iterations::
         c = RGB{Float64}(rand()%2,rand()%2,rand()%2)
         scatter!(iterationsDisplay, RMSE, markersize = 0.25, color = c)
         lines!(scene, iterationsDisplay, RMSE, color = c)
-        display(vbox(scene, scene2))
-        display(AbstractPlotting.PlotDisplay(), vbox(scene, scene2))
+        display(Makie.vbox(scene, scene2))
+        display(AbstractPlotting.PlotDisplay(), Makie.vbox(scene, scene2))
     end
 end
 

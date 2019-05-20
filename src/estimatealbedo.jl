@@ -31,7 +31,7 @@ Compute properties of synthetic image generated using `generate_surface`.
 using Images, ShapeFromShading
 
 #generate synthetic image
-img = generate_surface(0.5, [0.2,0,0.9], radius = 5)
+img = generate_surface(SynthSphere(), 1, [0.2,0,0.9], radius = 5)
 
 #estimate the properties
 albedo, illumination_direction, slant, tilt = estimate_img_properties(img)
