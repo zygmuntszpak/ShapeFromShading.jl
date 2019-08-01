@@ -19,6 +19,7 @@ struct DiscreteShapeBound <: AbstractShapeAlgorithm end
 struct Pentland <: AbstractShapeAlgorithm end
 struct Photometric <: AbstractShapeAlgorithm end
 struct Shah <: AbstractShapeAlgorithm end
+struct SimulatedAnnealing <: AbstractShapeAlgorithm end
 
 abstract type AbstractIntegrationScheme end
 struct Durou <: AbstractIntegrationScheme end
@@ -52,6 +53,7 @@ include("pentland.jl")
 include("photometric.jl")
 include("shah.jl")
 include("syntheticsurface.jl")
+include("simulatedannealing.jl")
 
 export
     # main functions and datatypes
@@ -84,6 +86,7 @@ export
     Ripple,
     Ripple2,
     Shah,
+    SimulatedAnnealing,
     SplitPath,
     SuperGaussian,
     synthetic_gradient,
