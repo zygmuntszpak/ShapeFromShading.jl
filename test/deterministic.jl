@@ -1,7 +1,7 @@
 @testset "Deterministic" begin
     img = generate_surface(SynthSphere(), 0.5, [0,0,1], radius = 50, background = false)
     p,q = synthetic_gradient(SynthSphere(), radius = 40)
-    p,q = retrieve_surface(Deterministic(), img, p, q)
+    p,q = Deterministic(pin = p, qin = q)(img)
     @test p[76,76] ≈ 0.007431648383439121
     @test p[1,1] ≈ 0.0
     @test p[151,151] ≈ 0.0

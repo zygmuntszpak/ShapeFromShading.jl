@@ -1,22 +1,15 @@
 @doc raw"""
 WIP
 """
-function retrieve_surface(algorithm::Union{DeterministicCustom,Deterministic}, starting_shape::AbstractSyntheticShape, img::AbstractArray, integration_factor::Real = 10, smoothness::Real = 20; noise_val::Real = 0, radius=50)
-    # Generate initial gradient and dipatch on desired function.
-    p,q = synthetic_gradient(starting_shape, radius = radius, noise = noise_val)
-    p,q = retrieve_surface(algorithm, img, p, q, integration_factor, smoothness)
-    return p,q
-end
-
-function retrieve_surface(algorithm::DeterministicCustom, img::AbstractArray, pin::AbstractArray, qin::AbstractArray, integration_factor::Real = 10, smoothness::Real = 20)
+function (algorithm::DeterministicCustom)(img::AbstractArray)
     # Setup initial variables
     E = Array{Float64}(img)
     Eₘ = maximum(E)
-    p = copy(pin)
-    q = copy(qin)
+    p = copy(algorithm.pin)
+    q = copy(algorithm.qin)
     N, M = size(E)
-    λᵢ = integration_factor
-    λₛ = smoothness
+    λᵢ = algorithm.integration_factor
+    λₛ = algorithm.smoothness
     R = zeros(Float64,axes(E))
     Z = zeros(axes(E))
     Δϵ = zeros(Float64,(size(E)...,2))
@@ -106,15 +99,17 @@ function f(E, pq, λᵢ, λₛ)
     return val
 end
 
-function retrieve_surface(algorithm::Deterministic, img::AbstractArray, pin::AbstractArray, qin::AbstractArray, integration_factor::Real = 10, smoothness::Real = 20)
+function (algorithm::Deterministic)(img::AbstractArray)
     # Setup initial variables
     E = Float64.(img)
     x₀ = zeros(Float64,first(size(img)),last(size(img)),2)
-    x₀[:,:,1] .= pin
-    x₀[:,:,2] .= qin
+    x₀[:,:,1] .= algorithm.pin
+    x₀[:,:,2] .= algorithm.qin
+    λᵢ = algorithm.integration_factor
+    λₛ = algorithm.smoothness
 
     # Calcualte derivatives
-    od = OnceDifferentiable(pq -> f(E,pq,integration_factor,smoothness), x₀; autodiff = :forward);
+    od = OnceDifferentiable(pq -> f(E, pq, λᵢ, λₛ), x₀; autodiff = :forward);
     a = zeros(size(x₀))
 
     # Run gradient descent

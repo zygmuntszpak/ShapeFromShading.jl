@@ -51,7 +51,7 @@ img = generate_surface(SynthSphere(), 0.5, [0.5,0.1,0.7], radius = 50)
 # Reference
 1. S. Elhabian, "Hands on Shape from Shading", Computer Vision and Image Processing, 2008.
 """
-function generate_surface(shape::AbstractSyntheticShape, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = false, background::Bool = true)
+function generate_surface(shape::AbstractSyntheticShape, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = true, background::Bool = true)
     I = illumination_direction./norm(illumination_direction)
     ρ = albedo
     R = zeros(Float64, img_size, img_size)
@@ -71,7 +71,7 @@ function generate_surface(shape::AbstractSyntheticShape, albedo::Real = 0.5, ill
 end
 
 # Generates image from given gradients
-function generate_surface(p, q, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = false, background::Bool = true)
+function generate_surface(p, q, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = true, background::Bool = true)
     I = illumination_direction./norm(illumination_direction)
     ρ = albedo
     R = zeros(Float64, img_size, img_size)
@@ -87,7 +87,7 @@ function generate_surface(p, q, albedo::Real = 0.5, illumination_direction::Vect
 end
 
 # Generates image, gradients and ground truth for a shape
-function generate_surface_data(shape::AbstractSyntheticShape, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = false, background::Bool = true)
+function generate_surface_data(shape::AbstractSyntheticShape, albedo::Real = 0.5, illumination_direction::Vector{T} where T <: Real = [0, 0, 1]; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = true, background::Bool = true)
     img = generate_surface(shape, albedo, illumination_direction, radius = radius, img_size = img_size, noise = noise, relative_noise = relative_noise, background = background)
     p,q = synthetic_gradient(shape, radius = radius, img_size = img_size, noise = noise, relative_noise = relative_noise)
     Z = ground_truth(shape, radius = radius, img_size = img_size)
@@ -103,28 +103,32 @@ function generate_photometric(shape::AbstractSyntheticShape, albedo::Real = 0.5,
 end
 
 # Generates synthetic gradients for a shape
-function synthetic_gradient(shape::AbstractSyntheticShape; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = false)
+function synthetic_gradient(shape::AbstractSyntheticShape; radius::Real = 50, img_size::Int=151, noise::Real = 0, relative_noise::Bool = true)
     od = OnceDifferentiable(x -> shape(x, Float64(radius)), [0.0,0.0]; autodiff = :forward)
     p = zeros(Float64, img_size, img_size)
     q = zeros(Float64, img_size, img_size)
     x,y = setup_xy(img_size)
     for i in CartesianIndices(x)
-            pq = [0.0,0.0]
-            od.df(pq,([x[i],y[i]]))
-            p[i], q[i] = pq
-            if isnan(p[i])
-                p[i] = 0.0
-            end
-            if isnan(q[i])
-                q[i] = 0.0
-            end
-            if relative_noise == false
-                p[i] += rand(Normal(0, noise))
-                q[i] += rand(Normal(0, noise))
-            else
-                p[i] += p[i]*rand(Normal(0, noise))
-                q[i] += q[i]*rand(Normal(0, noise))
-            end
+        pq = [0.0,0.0]
+        od.df(pq,([x[i],y[i]]))
+        p[i], q[i] = pq
+        if isnan(p[i])
+            p[i] = 0.0
+        end
+        if isnan(q[i])
+            q[i] = 0.0
+        end
+    end
+    valP = maximum(abs.(p))
+    valQ = maximum(abs.(q))
+    for i in CartesianIndices(x)
+        if relative_noise == false
+            p[i] += rand(Normal(0, noise))
+            q[i] += rand(Normal(0, noise))
+        else
+            p[i] += rand(Normal(0, noise*valP))
+            q[i] += rand(Normal(0, noise*valQ))
+        end
     end
     return p,q
 end
@@ -137,16 +141,6 @@ function ground_truth(shape::AbstractSyntheticShape; radius::Real = 50, img_size
         Z[i] = shape([x[i],y[i]], radius)
     end
     return Z
-end
-
-# Sphere
-function (shape::SynthSphere)(x::AbstractArray, r::Real)
-    if x[1]^2 + x[2]^2 < r^2
-        z = sqrt(r^2-(x[1]^2 + x[2]^2))
-    else
-        z = 0.0
-    end
-    return z
 end
 
 # Cake like shape
@@ -173,6 +167,27 @@ function (shape::Cake2)(x::AbstractArray, r::Real)
     return z
 end
 
+function g(x,y)
+    return 3 * (1 - x)^2 * exp(-x^2 - (y + 1)^2) - 10 * (x / 5 - x^3 - y^5) * exp(-x^2 - y^2) - (1/3) * exp(-(x + 1)^2 - y^2)
+end
+
+# DEM
+function (shape::Dem)(x::AbstractArray, r::Real)
+    x = x ./ r .* 6.4
+    x = x ./ 1.6
+    z = g(x[1], x[2]) *r/6.4
+    return z
+end
+
+# Prism like shape
+function (shape::Prism)(x::AbstractArray, r::Real)
+    z = 0.0
+    if abs(x[1]) <= r/2 && abs(x[2]) <= r/2
+        z = x[1]
+    end
+    return z
+end
+
 # Ripple
 function (shape::Ripple)(x::AbstractArray, r::Real)
     z = 25*cos(sqrt(x[1]^2 + x[2]^2) / r)
@@ -185,12 +200,25 @@ function (shape::Ripple2)(x::AbstractArray, r::Real)
     return z
 end
 
-# Cup
-function (shape::Cup)(x::AbstractArray, r::Real)
-    if abs(x[1] + 20) < 35.0 && abs(x[2]) < 45
-        z = sqrt(35^2 - (x[1] + 20)^2)
-    elseif (x[1]) >= 15 && 25-(sqrt(x[2]^2+(x[1] - 10)^2)-25)^2 > 0
-        z = 25-(sqrt(x[2]^2+(x[1] - 10)^2)-25)^2
+# Gaussian to a higher power
+function (shape::SuperGaussian)(x::AbstractArray, r::Real)
+    x = x ./ r .* 4
+    P = 2
+    z = exp(-((x[1]^2)/2+(x[2]^2)/2)^P)*r/4
+    return z
+end
+
+# Gaussian
+function (shape::SynthGaussian)(x::AbstractArray, r::Real)
+    x = x ./ r .* 4
+    z = exp(-((x[1]^2)/2+(x[2]^2)/2)) * r/4
+    return z
+end
+
+# Sphere
+function (shape::SynthSphere)(x::AbstractArray, r::Real)
+    if x[1]^2 + x[2]^2 < r^2
+        z = sqrt(r^2-(x[1]^2 + x[2]^2))
     else
         z = 0.0
     end
@@ -220,33 +248,6 @@ function (shape::Tent)(x::AbstractArray, r::Real)
     else
         z = 0.0
     end
-    return z
-end
-
-function g(x,y)
-    return 3 * (1 - x)^2 * exp(-x^2 - (y + 1)^2) - 10 * (x / 5 - x^3 - y^5) * exp(-x^2 - y^2) - (1/3) * exp(-(x + 1)^2 - y^2)
-end
-
-# DEM
-function (shape::Dem)(x::AbstractArray, r::Real)
-    x = x ./ r .* 6.4
-    x = x ./ 1.6
-    z = g(x[1], x[2]) *r/6.4
-    return z
-end
-
-# Gaussian
-function (shape::SynthGaussian)(x::AbstractArray, r::Real)
-    x = x ./ r .* 4
-    z = exp(-((x[1]^2)/2+(x[2]^2)/2)) * r/4
-    return z
-end
-
-# Gaussian to a higher power
-function (shape::SuperGaussian)(x::AbstractArray, r::Real)
-    x = x ./ r .* 4
-    P = 2
-    z = exp(-((x[1]^2)/2+(x[2]^2)/2)^P)*r/4
     return z
 end
 

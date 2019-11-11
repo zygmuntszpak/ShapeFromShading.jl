@@ -3,7 +3,7 @@
     I₂ = [1.0,0.2,1.0]
     I₃ = [0.2,0.9,1.0]
     img1, img2, img3 = generate_photometric(SynthSphere(), 1, I₁, I₂, I₃, radius = 50, background = false)
-    Z, p, q = retrieve_surface(Photometric(), img1, img2, img3, -I₁, -I₂, -I₃)
+    Z, p, q = Photometric(-I₁, -I₂, -I₃, Horn())(img1, img2, img3)
     @test p[76,76] ≈ 0.25222893791413625
     @test p[1,1] ≈ 0.0
     @test p[151,151] ≈ 0.0

@@ -92,16 +92,16 @@ surface(r, r, Z)
 # Reference
 1. A. Pentland, "Shape Information From Shading: A Theory About Human Perception," [1988 Proceedings] Second International Conference on Computer Vision, Tampa, FL, USA, 1988, pp. 404-413. [doi: 10.1109/CCV.1988.590017](https://doi.org/10.1109/ccv.1988.590017)
 """
-function retrieve_surface(algorithm::Pentland, img::AbstractArray)
-    ρ, I, σ, τ = estimate_img_properties(img)
-    return retrieve_surface(Pentland(),img,σ,τ)
-end
-
-function retrieve_surface(algorithm::Pentland, img::AbstractArray, slant::Real, tilt::Real)
+function (algorithm::Pentland)(img::AbstractArray)
     #find illumination and albedo
-    σ = slant
-    τ = tilt
+    σ = algorithm.slant
+    τ = algorithm.tilt
+    if σ == Inf || τ == Inf
+        ρ, I, σ, τ = estimate_img_properties(img)
+    end
+
     E = Complex{Float64}.(reinterpret(Float64, img))
+
     #take Fourier transform
     fft!(E)
     M, N = size(E)

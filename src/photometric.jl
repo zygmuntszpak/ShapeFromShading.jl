@@ -75,7 +75,19 @@ surface(r, r, Z)
 # Reference
 1. R. Woodham, "Photometric Method For Determining Surface Orientation From Multiple Images", Optical Engineering, vol. 19, no. 1, 1980. [doi:10.1117/12.7972479](https://doi.org/10.1117/12.7972479)
 """
-function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::AbstractArray, img3::AbstractArray, illumination_direction1::Vector{T} where T <: Real, illumination_direction2::Vector{T} where T <: Real, illumination_direction3::Vector{T} where T <: Real; integration_scheme::AbstractIntegrationScheme = Horn())
+function (algorithm::Photometric)(img1::AbstractArray, img2::AbstractArray, img3::AbstractArray)
+
+    illumination_direction1 = algorithm.illumination_direction1
+    illumination_direction2 = algorithm.illumination_direction2
+    illumination_direction3 = algorithm.illumination_direction3
+    integration_scheme = algorithm.integration_scheme
+
+    if illumination_direction1 == [Inf, Inf, Inf] || illumination_direction2 == [Inf, Inf, Inf] || illumination_direction3 == [Inf, Inf, Inf]
+        ρ, illumination_direction1, σ, τ = estimate_img_properties(img1)
+        ρ, illumination_direction2, σ, τ = estimate_img_properties(img2)
+        ρ, illumination_direction3, σ, τ = estimate_img_properties(img3)
+    end
+
     #setup illumination matrix
     N = zeros(Float64, 3, 3)
     for i = 1:3
@@ -104,6 +116,6 @@ function retrieve_surface(algorithm::Photometric, img1::AbstractArray, img2::Abs
     end
 
     #reconstruct surface
-    Z = convert_gradient(integration_scheme, p, q)
+    Z = integration_scheme(p, q)
     return Z, p, q
 end

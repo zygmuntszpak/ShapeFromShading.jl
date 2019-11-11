@@ -57,29 +57,29 @@ function solve_EulerLagrange(ρ, I, iterations, p, q, R, λ, E, Z)
     return Z, p, q
 end
 
-function solve_EulerLagrange2(ρ, I, iterations, p, q, R, λ, E, Z)
-    bound = (2:(first(size(R))-1),(2:last(size(R))-1))
-    for i = 1:iterations
-        pᵏ⁺¹ = copy(p)
-        qᵏ⁺¹ = copy(q)
-        for i in CartesianIndices(bound)
-            #calculate reflectance map
-            R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
-            pq = (1 + p[i]^2 + q[i]^2)
-            dRδp = ((-ρ * I[1]) / sqrt(pq)) + ((-I[1] * ρ) * p[i] - I[2] * ρ * q[i] + I[3] * ρ) * (-1 * p[i] * (pq^(-3/2)))
-            dRδq = ((-ρ * I[2]) / sqrt(pq)) + (-I[1] * ρ * p[i] - I[2] * ρ * q[i] + I[3] * ρ) * (-1 * q[i] * (pq^(-3/2)))
-            pbar = (p[i[1]+1, i[2]] + p[i[1]-1, i[2]]) / 2
-            qbar = (q[i[1], i[2]+1] + q[i[1], i[2]-1]) / 2
-            pt = (p[i[1]+1, i[2]+1] + p[i[1]-1, i[2]-1] - p[i[1]+1, i[2]-1] - p[i[1]-1, i[2]+1]) / 4
-            qt = (q[i[1]+1, i[2]+1] + q[i[1]-1, i[2]-1] - q[i[1]+1, i[2]-1] - q[i[1]-1, i[2]+1]) / 4
-            pᵏ⁺¹[i] = pbar - qt/2 + (1 / (2 * λ)) * (E[i] - R[i]) * dRδq
-            qᵏ⁺¹[i] = qbar - pt/2 + (1 / (2 * λ)) * (E[i] - R[i]) * dRδp
-        end
-        p = pᵏ⁺¹
-        q = qᵏ⁺¹
-    end
-    return p, q
-end
+# function solve_EulerLagrange2(ρ, I, iterations, p, q, R, λ, E, Z)
+#     bound = (2:(first(size(R))-1),(2:last(size(R))-1))
+#     for i = 1:iterations
+#         pᵏ⁺¹ = copy(p)
+#         qᵏ⁺¹ = copy(q)
+#         for i in CartesianIndices(bound)
+#             #calculate reflectance map
+#             R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
+#             pq = (1 + p[i]^2 + q[i]^2)
+#             dRδp = ((-ρ * I[1]) / sqrt(pq)) + ((-I[1] * ρ) * p[i] - I[2] * ρ * q[i] + I[3] * ρ) * (-1 * p[i] * (pq^(-3/2)))
+#             dRδq = ((-ρ * I[2]) / sqrt(pq)) + (-I[1] * ρ * p[i] - I[2] * ρ * q[i] + I[3] * ρ) * (-1 * q[i] * (pq^(-3/2)))
+#             pbar = (p[i[1]+1, i[2]] + p[i[1]-1, i[2]]) / 2
+#             qbar = (q[i[1], i[2]+1] + q[i[1], i[2]-1]) / 2
+#             pt = (p[i[1]+1, i[2]+1] + p[i[1]-1, i[2]-1] - p[i[1]+1, i[2]-1] - p[i[1]-1, i[2]+1]) / 4
+#             qt = (q[i[1]+1, i[2]+1] + q[i[1]-1, i[2]-1] - q[i[1]+1, i[2]-1] - q[i[1]-1, i[2]+1]) / 4
+#             pᵏ⁺¹[i] = pbar - qt/2 + (1 / (2 * λ)) * (E[i] - R[i]) * dRδq
+#             qᵏ⁺¹[i] = qbar - pt/2 + (1 / (2 * λ)) * (E[i] - R[i]) * dRδp
+#         end
+#         p = pᵏ⁺¹
+#         q = qᵏ⁺¹
+#     end
+#     return p, q
+# end
 
 
 # WIP only works for odd dims
@@ -111,4 +111,75 @@ function setup_xy(dim)
         y[i] = -xyrange[i[1]]
     end
     return x,y
+end
+
+function gen_mask(p::AbstractArray, q::AbstractArray,σ::Real)
+    pq, pp = imgradients(p, KernelFactors.prewitt)
+    qq, qp = imgradients(q, KernelFactors.prewitt)
+    # Violation of Schwarz integrability condition + large jump in one derivative without a corrisponding jump in the other
+    mask = abs.(pq - qp) + abs.(pp - qq)
+    t = mean(mask)+σ*std(mask)
+    for i in CartesianIndices(mask)
+          mask[i] = mask[i] <= t ? 1 : 0
+    end
+    stop = false
+    while !stop
+        stop = true
+        for i in CartesianIndices(mask)
+            if mask[i] != 0 && i[1] != 1 && i[2] != 1 && i[1] != first(size(p)) && i[2] != last(size(p))
+                count = 0
+                count += mask[i[1]+1,i[2]] == 0 ? 1 : 0
+                count += mask[i[1]-1,i[2]] == 0 ? 1 : 0
+                count += mask[i[1],i[2]+1] == 0 ? 1 : 0
+                count += mask[i[1],i[2]-1] == 0 ? 1 : 0
+                if count > 2
+                    mask[i] = 0
+                    stop = false
+                end
+            end
+        end
+    end
+    splitMask = copy(mask)
+    while findfirst(x -> x==1 , splitMask) != nothing
+        # @show count(x -> x == 1, splitMask)
+        seed = [findfirst(x -> x==1 , splitMask)]
+        val = maximum(splitMask) + 1
+        while length(seed) > 0
+            i = 1
+            # @show length(seed)
+            if splitMask[seed[i]] == 1
+                splitMask[seed[i]] = val
+                if seed[i][1] != 1
+                    if splitMask[seed[i][1]-1, seed[i][2]] == 1
+                        push!(seed, CartesianIndex(seed[i][1]-1, seed[i][2]))
+                    end
+                end
+                if seed[i][2] != last(size(mask))
+                    if splitMask[seed[i][1], seed[i][2]+1] == 1
+                        push!(seed, CartesianIndex(seed[i][1], seed[i][2]+1))
+                    end
+                end
+                if seed[i][1] != first(size(mask))
+                    if splitMask[seed[i][1]+1, seed[i][2]] == 1
+                        push!(seed, CartesianIndex(seed[i][1]+1, seed[i][2]))
+                    end
+                end
+                if seed[i][2] != 1
+                    if splitMask[seed[i][1], seed[i][2]-1] == 1
+                        push!(seed, CartesianIndex(seed[i][1], seed[i][2]-1))
+                    end
+                end
+            end
+            deleteat!(seed,1)
+            # @show length(seed)
+        end
+    end
+    layerMask = zeros(Float64, size(mask)..., Int(maximum(splitMask)))
+    layerMask[:,:,1] = mask
+    for i in CartesianIndices(splitMask)
+        if splitMask[i] != 0
+            layerMask[i,Int(splitMask[i])] = 1
+        end
+    end
+    return layerMask
 end

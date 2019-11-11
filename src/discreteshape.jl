@@ -124,15 +124,16 @@ surface(r, r, Z)
 # Reference
 1. S. Elhabian, "Hands on Shape from Shading", Computer Vision and Image Processing, 2008.
 """
-function retrieve_surface(algorithm::DiscreteShape, img::AbstractArray, iterations::Int=2000; smoothness::Int=1000)
-    ρ,I,σ,τ = estimate_img_properties(img)
-    λ=smoothness
-    return retrieve_surface(DiscreteShape(), img, ρ, I, iterations, smoothness=λ)
-end
+function (algorithm::DiscreteShape)(img::AbstractArray)
+    ρ = algorithm.albedo
+    I = algorithm.illumination_direction
+    smoothness = algorithm.smoothness
+    iterations = algorithm.iterations
 
-function retrieve_surface(algorithm::DiscreteShape, img::AbstractArray, albedo::Real, illumination_direction::Vector{T} where T <: Real, iterations::Int=2000; smoothness::Int=1000)
-    ρ = albedo
-    I = illumination_direction
+    if ρ == Inf || I == [Inf, Inf, Inf]
+        ρ,I,σ,τ = estimate_img_properties(img)
+    end
+
     E = Array{Float64}(img)
 
     #initialize variables

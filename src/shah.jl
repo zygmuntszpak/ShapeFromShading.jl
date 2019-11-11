@@ -89,13 +89,13 @@ surface(r, r, Z)
 # Reference
 1. T. Ping-Sing and M. Shah, "Shape from shading using linear approximation", Image and Vision Computing, vol. 12, no. 8, pp. 487-498, 1994. [doi:10.1016/0262-8856(94)90002-7](https://doi.org/10.1016/0262-8856(94)90002-7)
 """
-function retrieve_surface(algorithm::Shah, img::AbstractArray, iterations::Int=200)
-    ρ,I,σ,τ = estimate_img_properties(img)
-    return retrieve_surface(Shah(), img, σ, τ, iterations)
-end
+function (algorithm::Shah)(img::AbstractArray)
+    σ, τ = algorithm.slant, algorithm.tilt
+    if σ == Inf || τ == Inf
+        ρ, I, σ, τ = estimate_img_properties(img)
+    end
+    iterations = algorithm.iterations
 
-function retrieve_surface(algorithm::Shah, img::AbstractArray, slant::Real, tilt::Real, iterations::Int=200)
-    σ, τ = slant,tilt
     E = Float64.(img)
     E = E .* 255
     M, N = size(E)

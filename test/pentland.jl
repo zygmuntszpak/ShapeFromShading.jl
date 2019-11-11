@@ -1,6 +1,6 @@
 @testset "pentland" begin
     img = generate_surface(SynthSphere(), 0.5, [0,0,1], radius = 50, background = false)
-    Z = retrieve_surface(Pentland(), img)
+    Z = Pentland()(img)
     @test Z[76,76] ≈ 3.4232738028272176
     @test isapprox(Z[1,1], 1.160438047437746e-14; atol = 2e-15)
     @test isapprox(Z[151,151], 6.374017915783071e-15; atol = 2e-15)
