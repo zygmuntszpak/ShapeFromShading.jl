@@ -57,32 +57,7 @@ function solve_EulerLagrange(ρ, I, iterations, p, q, R, λ, E, Z)
     return Z, p, q
 end
 
-# function solve_EulerLagrange2(ρ, I, iterations, p, q, R, λ, E, Z)
-#     bound = (2:(first(size(R))-1),(2:last(size(R))-1))
-#     for i = 1:iterations
-#         pᵏ⁺¹ = copy(p)
-#         qᵏ⁺¹ = copy(q)
-#         for i in CartesianIndices(bound)
-#             #calculate reflectance map
-#             R[i] = (ρ * (-I[1] * p[i] - I[2] * q[i] + I[3])) / sqrt(1 + p[i]^2 + q[i]^2)
-#             pq = (1 + p[i]^2 + q[i]^2)
-#             dRδp = ((-ρ * I[1]) / sqrt(pq)) + ((-I[1] * ρ) * p[i] - I[2] * ρ * q[i] + I[3] * ρ) * (-1 * p[i] * (pq^(-3/2)))
-#             dRδq = ((-ρ * I[2]) / sqrt(pq)) + (-I[1] * ρ * p[i] - I[2] * ρ * q[i] + I[3] * ρ) * (-1 * q[i] * (pq^(-3/2)))
-#             pbar = (p[i[1]+1, i[2]] + p[i[1]-1, i[2]]) / 2
-#             qbar = (q[i[1], i[2]+1] + q[i[1], i[2]-1]) / 2
-#             pt = (p[i[1]+1, i[2]+1] + p[i[1]-1, i[2]-1] - p[i[1]+1, i[2]-1] - p[i[1]-1, i[2]+1]) / 4
-#             qt = (q[i[1]+1, i[2]+1] + q[i[1]-1, i[2]-1] - q[i[1]+1, i[2]-1] - q[i[1]-1, i[2]+1]) / 4
-#             pᵏ⁺¹[i] = pbar - qt/2 + (1 / (2 * λ)) * (E[i] - R[i]) * dRδq
-#             qᵏ⁺¹[i] = qbar - pt/2 + (1 / (2 * λ)) * (E[i] - R[i]) * dRδp
-#         end
-#         p = pᵏ⁺¹
-#         q = qᵏ⁺¹
-#     end
-#     return p, q
-# end
-
-
-# WIP only works for odd dims
+# Set up values for fourier transform for Frankot method
 function setup_transform_values(N, M)
     wx = [j for i in 1:M, j in -0.5:(1/(N-1)):0.5]
     wy = [j for j in -0.5:(1/(M-1)):0.5, i in 1:N]
@@ -91,6 +66,7 @@ function setup_transform_values(N, M)
     return wx, wy
 end
 
+# Set up values for fourier transform for Pentland method
 function setup_transform_values_pentland(M, N)
     wx = zeros(M, N)
     wy = zeros(M, N)

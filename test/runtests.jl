@@ -13,13 +13,16 @@ using Test
     # include("SimulatedAnnealing.jl")
 end
 
-@testset "Integration" begin
+@testset "Integration A-N" begin
     include("anisotropicdiffusion.jl")
     include("durou.jl")
     include("frankot.jl")
     include("horn.jl")
     include("mumfordshah.jl")
-    include("nonconvex1.jl")
+    nclude("nonconvex1.jl")
+end
+
+@testset "Integration O-Z" begin
     include("path.jl")
     include("splitpath.jl")
     include("totalvariation.jl")

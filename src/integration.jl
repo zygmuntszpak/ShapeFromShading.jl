@@ -1,18 +1,147 @@
-#converts gradient field into heightmap using Fourier method
+@doc raw"""
+```
+Frankot()
+```
+Defines the Frankot integrator which contians the Frankot-Chellappa method of
+integration. The Frankot-Chellappa method is a fast, reliable method for
+integration surface normals while enforcing integrability using Fourier methods.
+# Output
+`Frankot()` returns a Frankot integrator which can then be called to run the
+Frankot-Chellappa method on a gradient field.
+# Details
+Frankot-Chellappa method uses Fourier methods to attempt to solve the Poission
+equation ``\del^2z = \partial_up + partial_vq`. By taking the Fourier transform
+of both sides we get:
+```math
+−(\omega^2_u + \omega^2_v)\hat{z}(\omega_u, \omega_v) = \imath \omega_u\hat{p}
+(\omega_u, \omega_v) + \imath \omega_v\hat{q}(\omega_u, \omega_v)
+```
+By rearanging the above equation we arive at an equation for ``\hat{z}``;
+```math
+\hat{z}(\omega_u, \omega_v) = \frac{\omega_u\hat{p}(\omega_u, \omega_v) +
+\omega_v\hat{q}(\omega_u, \omega_v)}{\imath(\omega^2_u + \omega^2_v)}
+```
+From which the final surface can be found by taking the inverse Fourier transform
+of ``\hat{z}``.
+
+Due to the way ``(\omega_u, \omega_v)`` is defined the algorithm works best when
+the input dimentions are odd in length. To accomidate this the integrator will
+pad the edge of the inputs if they are even before running the algorithm. This
+padding will be removed before returning a value hence output size will be
+unaffected.
+# Parameters
+`Frankot` integrator take no parameters.
+# Example
+The following example demontraits the use of the `Frankot` integrator.
+```julia
+using ShapeFromShading, Makie
+
+# Generate synthetic gradients
+p, q = synthetic_gradient(SynthSphere(), radius = 38, img_size = 151)
+
+# Create a Frankot() integrator
+frankot = Frankot()
+
+# Calculate the heightmap from the gradients
+Z = frankot(p, q)
+
+# Normalize to maximum of 1 (not necessary but makes displaying easier)
+Z = Z./maximum(Z)
+
+# Display using Makie (Note: Makie can often take several minutes first time)
+r = 0.0:0.1:4
+surface(r, r, Z)
+```
+# Reference
+R. T. Frankot and R. Chellappa, "A method for enforcing integrability in shape from shading algorithms," in IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 10, no. 4, pp. 439-451, July 1988. [doi: 10.1109/34.3909](https://doi.org/10.1109/34.3909 )
+"""
 function (scheme::Frankot)(pin::AbstractArray, qin::AbstractArray)
-    p = Complex{Float64}.(pin)
-    q = Complex{Float64}.(qin)
-    wx, wy = setup_transform_values(last(size(p)),first(size(p)))
+    # Resize grid to be odd dimensions. (Requared to setup transofrm values)
+    M, N = size(pin)
+    p = zeros(Complex{Float64}, M + 1 - (M%2), N + 1 - (N%2))
+    p[1:M, 1:N] = Complex{Float64}.(pin)
+    q = zeros(Complex{Float64}, M + 1 - (M%2), N + 1 - (N%2))
+    q[1:M, 1:N] = Complex{Float64}.(qin)
+
+    wx, wy = setup_transform_values(N,M)
     fft!(p)
     fft!(q)
     Z = zeros(Complex{Float64}, size(p))
     Z = (-1im .* wx .* p .+ 1im .* wy .* q) ./ (2 .* π .* (wx.^2 .+ wy.^2 .+ eps()))
     ifft!(Z)
     Z = abs.(Z)
-    return Z
+    return Z[1:M,1:N]
 end
 
-#converts gradient field into heightmap using average of two integrals
+@doc raw"""
+```
+Path()
+```
+Creates a `Path()` integrator which utilizes the average of two path integrals
+along varying paths. Each path integral reconstructs the surface with
+accumilating error along the path, hence averaging two different paths can
+minimize this error, although the method still suffers if the gradient field is
+not integrable at some points.
+# Output
+`Path()` returns a Path integrator which can then be called to integrate a
+gradient field.
+# Details
+Under the assumption that the surface normals are approximitly integrable
+everywhere (``\frac{\partial p}{\partial y}\approx\frac{\partial q}{\partial x}``),
+then surface can be reconstructed using the path integral defined as:
+```math
+z(x,y)=\oint_c\left(\frac{\partial z}{\partial x},\frac{\partial z}{\partial y}\right)\cdot dl
+```
+Which can be broken into two integrals representing the value at each point on
+the surface as shown below for a path which integrates along the first column
+then along the row.
+```math
+z(u,v)=\int_0^v\frac{\partial z}{\partial y}(0,y)dy + \int_0^u\frac{\partial z}{\partial x}(x,v)dx
+```
+The second path used in the algorithm is simply the transpose of the first
+integrating along the first row then down the column represented mathmatically as:
+```math
+z(u,v)=\int_0^u\frac{\partial z}{\partial x}(x,0)dx + \int_0^v\frac{\partial z}{\partial y}(u,y)dy
+```
+The algorithm can be writen, then  discreatizes as shown below:
+```math
+\begin{gathered*}
+z(u,v)=\frac{1}{2}\left(\int_0^v\frac{\partial z}{\partial y}(0,y)dy + \int_0^u\frac{\partial z}{\partial x}(x,v)dx + \int_0^u\frac{\partial z}{\partial x}(x,0)dx + \int_0^v\frac{\partial z}{\partial y}(u,y)dy\right)\\
+z(u,v)=\frac{1}{2}\left(\sum_{i=0}^vq(0,i) + \sum_{j=0}^up(j,v) + \sum_{j=0}^up(j,0) + \sum_{i=0}^vq(u,i)\right)\\
+z(u,v)=\frac{1}{2}\left(\sum_{i=0}^v(q(0,i) + q(u,i)) + \sum_{j=0}^u(p(j,0) + p(j,v))\right)\\
+\end{gathered*}
+```
+It is important to note as mentioned above if there are non-integrable points in
+the normal field then artifacts can appear in the reconstruction. This is
+seen in the example below where the otherwise smooth sphere appears "spiky".
+This can be corrected post reconstruction by smoothing but idealy a different
+integrator should be used.
+# Arguments
+`Path` integrator take no parameters.
+# Example
+The following example demontraits the use of the `Path` integrator.
+```julia
+using ShapeFromShading, Makie
+
+# Generate synthetic gradients
+p, q = synthetic_gradient(SynthSphere(), radius = 38, img_size = 151)
+
+# Create a Path() integrator
+path = Path()
+
+# Calculate the heightmap from the gradients
+Z = path(p, q)
+
+# Normalize to maximum of 1 (not necessary but makes displaying easier)
+Z = Z./maximum(Z)
+
+# Display using Makie (Note: Makie can often take several minutes first time)
+r = 0.0:0.1:4
+surface(r, r, Z)
+```
+# Reference
+D. Forsyth and J. Ponce, Computer vision: a modern approach. Upper Saddle River, N.J: Prentice Hall, 2003, pp. 84-86.
+"""
 function (scheme::Path)(p::AbstractArray, q::AbstractArray)
     R, C = size(p)
     Z₁ = zeros(Float64, size(p))
@@ -41,7 +170,79 @@ function (scheme::Path)(p::AbstractArray, q::AbstractArray)
     return Z
 end
 
-#converts gradient field into heightmap using integral culculated from average gradient at point
+@doc raw"""
+```
+SplitPath()
+```
+Creates a `SplitPath()` integrator which utilizes the average of two path integrals
+along varying paths averaging the value at each step. Each path integral
+reconstructs the surface with accumilating error along the path, hence averaging
+two different paths at each step reduces the global error at the cost of local
+error, although the method still suffers if the gradient field is not integrable
+at some points it does less so the `Path()` from which it extends.
+# Output
+`SplitPath()` returns a SplitPath integrator which can then be called to integrate
+a gradient field.
+# Details
+Under the assumption that the surface normals are approximitly integrable
+everywhere (``\frac{\partial p}{\partial y}\approx\frac{\partial q}{\partial x}``),
+then surface can be reconstructed using the path integral defined as:
+```math
+z(x,y)=\oint_c\left(\frac{\partial z}{\partial x},\frac{\partial z}{\partial y}\right)\cdot dl
+```
+By expanding on this principle and the discreate summation from `Path()` we can
+arrive at the discreate expresion for the value at each point, assuming all
+values prior to that point have been calculated, as follows:
+```math
+z(u,v) = \frac{1}{2}(z(u-1,v)+p(u-1,v)+z(u,v-1)+q(u,v-1))
+```
+As with other simular methods (see `Horn()`) care must be taken with regards to
+boundries which can be calculated, to a constant value ``z(0,0)`` which is assumed
+to be the zero point, using:
+```math
+\begin{gathered*}
+z(u,0) = z(u-1,0)+p(u-1,0)\\
+z(0,v) = z(0,v-1)+q(0,v-1)
+\end{gathered*}
+```
+It is important to note as mentioned above if there are non-integrable points in
+the normal field then artifacts can appear in the reconstruction. These errors
+gradully average out but will lead to "streaks" appearing in the reconstruction.
+This is seen in the example below where the otherwise smooth sphere appears has
+ripple like structures pointing toward to top right corner. This can be corrected
+post reconstruction by smoothing but idealy a different integrator should be used.
+It is also interesting to note the parrallels between this method and the Horn
+and Brooks methed, with this mehtod being effectivly the forward component of
+Horn's method. As such this algorithm provided a usefull middle gorund between
+direct integration algorithms and iterative algorithms such as the Horn and Brooks
+mehtod.
+# Arguments
+`SplitPath` integrator take no parameters.
+# Example
+The following example demontraits the use of the `Path` integrator.
+```julia
+using ShapeFromShading, Makie
+
+# Generate synthetic gradients
+p, q = synthetic_gradient(SynthSphere(), radius = 38, img_size = 151)
+
+# Create a Path() integrator
+splitPath = SplitPath()
+
+# Calculate the heightmap from the gradients
+Z = splitPath(p, q)
+
+# Normalize to maximum of 1 (not necessary but makes displaying easier)
+Z = Z./maximum(Z)
+
+# Display using Makie (Note: Makie can often take several minutes first time)
+r = 0.0:0.1:4
+surface(r, r, Z)
+```
+# Reference
+[1] D. Forsyth and J. Ponce, Computer vision: a modern approach. Upper Saddle River, N.J: Prentice Hall, 2003, pp. 84-86.
+[2] B. Horn and M. Brooks, "The variational approach to shape from shading", Computer Vision, Graphics, and Image Processing, vol. 33, no. 2, pp. 174-208, 1986. [doi: 10.1016/0734-189x(86)90114-3](https://doi.org/10.1016/0734-189x(86)90114-3 )
+"""
 function (scheme::SplitPath)(p::AbstractArray, q::AbstractArray)
     R, C = size(p)
     Z = zeros(Float64, size(p))
@@ -58,8 +259,26 @@ function (scheme::SplitPath)(p::AbstractArray, q::AbstractArray)
     return Z
 end
 
-#Horn and Brooks
-function (scheme::Horn)(p::AbstractArray, q::AbstractArray)#, iter::Real = 10000, ϵ::Real = 1)
+@doc raw"""
+```
+Horn()
+```
+Impliments the Horn and Brook's method of integrating surface normals. This
+algorithm offers an iterative solution to the Poisson equation descriping the
+surface providing good reconstructions under most conditions.
+# Output
+`Horn()` returns a Horn integrator which can then be called to integrate
+a gradient field.
+# Details
+
+# Arguments
+
+# Example
+
+# Reference
+
+"""
+function (scheme::Horn)(p::AbstractArray, q::AbstractArray)
     iter = copy(scheme.max_iter)
     ϵ = copy(scheme.ϵ)
     Z = zeros(Float64, size(p))
@@ -97,7 +316,7 @@ function (scheme::Horn)(p::AbstractArray, q::AbstractArray)#, iter::Real = 10000
 end
 
 #Durou and Courteille
-function (scheme::Durou)(p::AbstractArray, q::AbstractArray, iter::Real = 1000, ϵ::Real = 1)
+function (scheme::Durou)(p::AbstractArray, q::AbstractArray)
     iter = copy(scheme.max_iter)
     ϵ = copy(scheme.ϵ)
     Z = zeros(Float64, size(p))
@@ -153,7 +372,7 @@ function gen_matrix(Dᵤ⁺, Dᵤ⁻, Dᵥ⁺, Dᵥ⁻,T,mask)
     end
 end
 
-function (scheme::Quadratic)(pIn::AbstractArray, qIn::AbstractArray) #, λ::AbstractArray, z⁰::AbstractArray, maskIn::AbstractArray = fill(1.0, size(z⁰)))
+function (scheme::Quadratic)(pIn::AbstractArray, qIn::AbstractArray)
     z⁰ = copy(scheme.z)
     λ = copy(scheme.λ)
     mask = copy(scheme.mask)
@@ -421,8 +640,7 @@ function (scheme::NonConvex1)(pIn::AbstractArray, qIn::AbstractArray)
     return z
 end
 
-function (scheme::AnisotropicDiffusion)(pIn::AbstractArray, qIn::AbstractArray) #, λ::AbstractArray, z⁰::AbstractArray, maskIn::AbstractArray = fill(1.0, size(z⁰)), μ::Real = 1.0, ν::Real = 10.0; max_iter::Int = 1000)
-    z⁰ = copy(scheme.z)
+function (scheme::AnisotropicDiffusion)(pIn::AbstractArray, qIn::AbstractArray)
     λ = copy(scheme.λ)
     mask = copy(scheme.mask)
     ν = copy(scheme.ν)
@@ -508,8 +726,7 @@ function (scheme::AnisotropicDiffusion)(pIn::AbstractArray, qIn::AbstractArray) 
     return z
 end
 
-function (scheme::MumfordShah)(pIn::AbstractArray, qIn::AbstractArray)#, λ::AbstractArray, z⁰::AbstractArray, maskIn::AbstractArray = fill(1.0, size(z⁰)), μ::Real = 1.0, ϵ::Real = 1.0; max_iter::Int = 1000)
-    z⁰ = copy(scheme.z)
+function (scheme::MumfordShah)(pIn::AbstractArray, qIn::AbstractArray)
     # z⁰ = copy(z⁰)
     # mask = copy(maskIn)
     λ = copy(scheme.λ)

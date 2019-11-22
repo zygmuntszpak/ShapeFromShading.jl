@@ -90,7 +90,7 @@ r = 0.0:0.1:2
 surface(r, r, Z)
 ```
 # Reference
-1. A. Pentland, "Shape Information From Shading: A Theory About Human Perception," [1988 Proceedings] Second International Conference on Computer Vision, Tampa, FL, USA, 1988, pp. 404-413. [doi: 10.1109/CCV.1988.590017](https://doi.org/10.1109/ccv.1988.590017)
+1. A. Pentland, "Shape Information From Shading: A Theory About Human Perception," [1988 Proceedings] Second International Conference on Computer Vision, Tampa, FL, USA, 1988, pp. 404-413. [doi: 10.1109/CCV.1988.590017](https://doi.org/10.1109/ccv.1988.590017 )
 """
 function (algorithm::Pentland)(img::AbstractArray)
     #find illumination and albedo
