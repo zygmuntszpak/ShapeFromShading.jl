@@ -55,9 +55,15 @@ function estimate_img_properties(img::AbstractArray)
     μ₂ = mean(E.^2)
 
     #calculate desired values
-    g = sqrt(6 * (π^2) * μ₂ - 48 * (μ₁^2))
+    g = sqrt((6.0 * (π^2) * μ₂) - (48.0 * (μ₁^2)))
     ρ = g / π
-    σ = acos((4 * μ₁) / g)
+    t = (4 * μ₁) / g
+    if t > 1.0
+        t = 1.0
+    elseif t < -1.0
+        t = -1.0
+    end
+    σ = acos(t)
     τ = atan(mean(nEy) / mean(nEx))
     if τ < 0
         τ = τ + π;
