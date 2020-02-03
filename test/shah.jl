@@ -1,11 +1,11 @@
 @testset "shah" begin
-    img = generate_surface(SynthSphere(), 0.5, [0,0,1], radius = 50, background = false)
-    Z, p, q = retrieve_surface(Shah(), img)
-    @test Z[76,76] ≈ 1.094239400597376e20
-    @test Z[1,1] ≈ 0.35149454483014475
-    @test Z[151,151] ≈ 31.010401226974405
-    @test Z[90,90] ≈ 1.0007532507217835e20
-    @test Z[101,36] ≈ 3.332266322735267e19
-    @test Z[22, 136] ≈ 46.397279917579205
-    @test Z[42,42] ≈ 2.4242786395625816e19
+    img = generate_surface(SynthSphere(50), 0.5)
+    Z = Shah()(img)
+    @test Z[76,76] ≈ 1.1326467103582539e20
+    @test Z[1,1] ≈ 1.1483728689832028e20
+    @test Z[151,151] ≈ 1.1450402052589486e20
+    @test isapprox(Z[90,90],  1.038114587065121e20, atol = 1e18)
+    @test Z[101,36] ≈ 6.890057069914122e19
+    @test Z[22, 136] ≈ 1.147427113061455e20
+    @test Z[42,42] ≈ 7.171417157958961e19
 end

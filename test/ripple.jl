@@ -1,5 +1,5 @@
 @testset "Ripple" begin
-    img, p, q, Z = generate_surface_data(Ripple(), 0.5, [0,0,1], radius = 5)
+    img, p, q, Z = generate_surface_data(Ripple(5), 0.5, [0,0,1])
     @test maximum(img) ≈ 0.5
     @test size(img)[1] ≈ 151
     @test img[10,10] ≈ 0.37078406641129436

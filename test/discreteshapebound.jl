@@ -1,11 +1,11 @@
 @testset "discreteshapebound" begin
-    img = generate_surface(SynthSphere(), 0.5, [0,0,1], radius = 50, background = false)
-    Z, p, q = retrieve_surface(DiscreteShapeBound(), img, smoothness=1000)
-    @test Z[38,38] ≈ 0.0003182796154911338
-    @test Z[1,1] ≈ 2.0548315482140964e-6
-    @test isapprox(Z[76,76], 1.2021784812891086e-19; atol = 2e-15)
-    @test Z[45,45] ≈ 0.00040018054317404224
-    @test Z[50,18] ≈ 0.00014000747445970892
-    @test Z[11, 68] ≈ 0.00018127096811786046
-    @test Z[42,42] ≈ 0.0003883024349324123
+    img = generate_surface(SynthSphere(50), 0.5, [0.5,0.0,0.9])
+    Z, p, q = DiscreteShapeBound(smoothness=1000, albedo = 1.0, illumination_direction = [0.5,0.0,0.9])(img)
+    @test Z[38,38] ≈ 0.00028515016913445543
+    @test Z[1,1] ≈ 9.035191974767473e-5
+    @test isapprox(Z[76,76], 0.00034007074121476805; atol = 2e-15)
+    @test Z[45,45] ≈ 0.00010731186855283559
+    @test Z[50,18] ≈ 0.0003244761469170222
+    @test Z[11, 68] ≈ 7.131234669714447e-5
+    @test Z[42,42] ≈ 0.0002467784663847426
 end

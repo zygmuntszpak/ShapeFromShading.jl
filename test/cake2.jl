@@ -1,5 +1,5 @@
 @testset "Cake2" begin
-    img, p, q, Z = generate_surface_data(Cake2(), 0.5, [0,0,1], radius = 65)
+    img, p, q, Z = generate_surface_data(Cake2(65), 0.5, [0,0,1])
     @test maximum(img) ≈ 0.5
     @test size(img)[1] ≈ 151
     @test img[10,10] ≈ 0.5
